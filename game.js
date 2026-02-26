@@ -1,107 +1,81 @@
 /**
  * ZLODĚJ – Card Game
- * game.js – Vlákno 1 + 2: Datové struktury, inicializace, rozdávání
- * ──────────────────────────────────────────────────────────────────
- * Vlákno 1:
- *   1. Lokalizační objekt LANG
- *   2. Konfigurace CONFIG a herní konstanty
- *   3. Vytvoření balíčku (createDeck)
- *   4. Zamíchání (shuffle – Fisher-Yates)
- *   5. Herní stav gameState
- *   6. Vytvoření hráče (createPlayer)
- *   7. Inicializace hry (initGame)
- *
- * Vlákno 2:
- *   8. Přesun karty (moveCard)
- *   9. Rozdání karet (dealCards)
- *  10. Start hry (startGame)
- *  11. Debug výstup na stránku (renderDebug)
+ * game.js – Vlákno 4: Herní UI, systém dvou kliků, odhoz karty
  */
 
 // ── 1. Lokalizace ──────────────────────────────────────────────────────────
 
 const LANG = {
   en: {
-    playerName:   "Player",
-    aiName:       "Computer",
-    draw:         "Draw pile",
-    discard:      "Discard pile",
-    scorePile:    "Score pile",
-    joker:        "Joker",
-    dealtCards:   "Cards dealt",
-    firstPlayer:  "Goes first",
+    playerName:    "Player",
+    aiName:        "Computer",
+    draw:          "Draw pile",
+    discard:       "Discard",
+    scorePile:     "Score pile",
+    joker:         "Joker",
+    yourTurn:      "Your turn — select a card",
+    selectTarget:  "Now choose where to play it",
+    aiThinking:    "Computer is thinking…",
+    discarded:     (name, card) => `${name} discarded ${card}.`,
+    newRound:      (n) => `Round ${n} — cards dealt.`,
+    cardsLeft:     (n) => `${n} card${n !== 1 ? "s" : ""}`,
   },
   cs: {
-    playerName:   "Hráč",
-    aiName:       "Počítač",
-    draw:         "Dobírací balíček",
-    discard:      "Odhazovací balíček",
-    scorePile:    "Bodovací balíček",
-    joker:        "Žolík",
-    dealtCards:   "Rozdané karty",
-    firstPlayer:  "Začíná",
+    playerName:    "Hráč",
+    aiName:        "Počítač",
+    draw:          "Dobírací balíček",
+    discard:       "Odhoz",
+    scorePile:     "Bodovací balíček",
+    joker:         "Žolík",
+    yourTurn:      "Tvůj tah — vyber kartu",
+    selectTarget:  "Vyber kam kartu zahraješ",
+    aiThinking:    "Počítač přemýšlí…",
+    discarded:     (name, card) => `${name} odhodil ${card}.`,
+    newRound:      (n) => `Kolo ${n} — rozdány karty.`,
+    cardsLeft:     (n) => `${n} karet`,
   }
 };
 
 let currentLang = "en";
-
-// T() vždy vrátí aktivní překlad
 const T = () => LANG[currentLang];
 
 
-// ── 2. Konfigurace a konstanty ─────────────────────────────────────────────
+// ── 2. Konfigurace ─────────────────────────────────────────────────────────
 
 const CONFIG = {
   HAND_SIZE:        6,
   DECKS:            2,
   JOKERS_PER_DECK:  2,
-  ANIMATION_SPEED: "normal",  // slow | normal | fast | off
+  ANIMATION_SPEED: "normal",
+  AI_DELAY_MS:      900,   // ms před tím než AI zahraje (aby to vypadalo přirozeně)
 };
 
-const SUITS = ["♠", "♥", "♦", "♣"];
-const RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A","Joker"];
+const SUITS  = ["♠", "♥", "♦", "♣"];
+const RANKS  = ["2","3","4","5","6","7","8","9","10","J","Q","K","A","Joker"];
+const RED_SUITS = new Set(["♥", "♦"]);
 
 const CARD_VALUES = {
-  "Joker": 50,
-  "A":     20,
+  "Joker": 50, "A": 20,
   "K": 10, "Q": 10, "J": 10, "10": 10,
-  "9":  5, "8":  5, "7":  5, "6":  5,
-  "5":  5, "4":  5, "3":  5, "2":  5,
+  "9": 5, "8": 5, "7": 5, "6": 5,
+  "5": 5, "4": 5, "3": 5, "2": 5,
 };
 
 
-// ── 3. Vytvoření balíčku ───────────────────────────────────────────────────
+// ── 3. Balíček ─────────────────────────────────────────────────────────────
 
 function createDeck() {
   const deck = [];
-  let idCounter = 0;
-
+  let id = 0;
   for (let d = 0; d < CONFIG.DECKS; d++) {
-    for (const suit of SUITS) {
-      for (const rank of RANKS.slice(0, -1)) {
-        deck.push({
-          suit:  suit,
-          rank:  rank,
-          value: CARD_VALUES[rank],
-          id:    idCounter++,
-        });
-      }
-    }
-    for (let j = 0; j < CONFIG.JOKERS_PER_DECK; j++) {
-      deck.push({
-        suit:  null,
-        rank:  "Joker",
-        value: 50,
-        id:    idCounter++,
-      });
-    }
+    for (const suit of SUITS)
+      for (const rank of RANKS.slice(0, -1))
+        deck.push({ suit, rank, value: CARD_VALUES[rank], id: id++ });
+    for (let j = 0; j < CONFIG.JOKERS_PER_DECK; j++)
+      deck.push({ suit: null, rank: "Joker", value: 50, id: id++ });
   }
-
   return deck;
 }
-
-
-// ── 4. Zamíchání (Fisher-Yates) ────────────────────────────────────────────
 
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
@@ -112,17 +86,20 @@ function shuffle(array) {
 }
 
 
-// ── 5. Herní stav ──────────────────────────────────────────────────────────
+// ── 4. Herní stav ──────────────────────────────────────────────────────────
 
 let gameState = null;
 
+// Aktuálně vybraná karta: { playerIndex, cardId } nebo null
+let selectedCard = null;
 
-// ── 6. Vytvoření hráče ────────────────────────────────────────────────────
+
+// ── 5. Hráč ───────────────────────────────────────────────────────────────
 
 function createPlayer(index, isHuman) {
   return {
-    index:        index,
-    isHuman:      isHuman,
+    index,
+    isHuman,
     name:         isHuman ? T().playerName : T().aiName,
     hand:         [],
     scorePile:    [],
@@ -132,168 +109,461 @@ function createPlayer(index, isHuman) {
 }
 
 
-// ── 7. Inicializace hry ────────────────────────────────────────────────────
+// ── 6. Rozdávání karet ─────────────────────────────────────────────────────
+
+function dealCards() {
+  for (const player of gameState.players) {
+    for (let i = 0; i < CONFIG.HAND_SIZE; i++) {
+      let card = null;
+      if (gameState.drawPile.length > 0) {
+        card = gameState.drawPile.pop();
+      } else if (gameState.discardPile.length > 0) {
+        card = gameState.discardPile.pop();
+      } else {
+        console.warn("Both piles empty during deal.");
+        break;
+      }
+      player.hand.push(card);
+    }
+  }
+  gameState.phase = "playing";
+}
+
+
+// ── 7. Inicializace ────────────────────────────────────────────────────────
 
 function initGame(numPlayers = 2) {
   const deck = shuffle(createDeck());
-
   const players = [];
-  for (let i = 0; i < numPlayers; i++) {
+  for (let i = 0; i < numPlayers; i++)
     players.push(createPlayer(i, i === 0));
-  }
+
+  const firstPlayer = Math.floor(Math.random() * numPlayers);
 
   gameState = {
-    players:            players,
+    players,
     drawPile:           deck,
     discardPile:        [],
-    currentPlayerIndex: 0,
+    currentPlayerIndex: firstPlayer,
     currentRound:       1,
-    subTurnIndex:       0,
+    subTurnIndex:       0,   // 0 – (numPlayers * HAND_SIZE - 1)
     phase:              "init",
     seriesScores:       players.map(() => 0),
-    seriesFirstPlayer:  0,   // index hráče který začal aktuální hru v sérii
     commitment:         null,
   };
 
-  console.log("✅ Game initialized:", gameState);
+  console.log(`🎲 First player: ${players[firstPlayer].name} (index ${firstPlayer})`);
+
+  dealCards();
+  setStatus(T().newRound(1));
+  renderAll();
+
+  // Pokud začíná AI, nechej ji zahrát po krátké pauze
+  if (!currentPlayer().isHuman) {
+    scheduleAiTurn();
+  }
 }
 
 
-// ── 8. Přesun karty ────────────────────────────────────────────────────────
+// ── 8. Pomocné funkce ──────────────────────────────────────────────────────
 
-/**
- * Vezme kartu z vrchu pole `from` a přidá ji na konec pole `to`.
- * Tato funkce je centrální bod pro všechny přesuny karet v celé hře.
- * Sem v budoucnu přidáme animaci – a bude fungovat všude najednou.
- *
- * @param {Array} from  - pole ze kterého bereme (např. gameState.drawPile)
- * @param {Array} to    - pole kam dáváme (např. player.hand)
- * @returns {Object}    - přesunutá karta (užitečné pro animace a logování)
- */
-function moveCard(from, to) {
-  // splice(-1, 1) vyjme poslední prvek pole a vrátí ho jako pole s jedním prvkem
-  // [0] na konci z toho pole vytáhne přímo kartu
-  const card = from.splice(-1, 1)[0];
-  to.push(card);
-  return card;
+/** Vrátí hráče který je momentálně na tahu. */
+function currentPlayer() {
+  return gameState.players[gameState.currentPlayerIndex];
+}
+
+/** Najde kartu v ruce hráče podle id. Vrátí { card, index } nebo null. */
+function findCardInHand(playerIndex, cardId) {
+  const hand = gameState.players[playerIndex].hand;
+  const idx  = hand.findIndex(c => c.id === cardId);
+  if (idx === -1) return null;
+  return { card: hand[idx], index: idx };
+}
+
+/** Textový popis karty pro log: "K♠", "Joker" */
+function cardLabel(card) {
+  return card.rank === "Joker" ? T().joker : `${card.rank}${card.suit}`;
+}
+
+/** Nastaví text stavového řádku. highlight = zlatá barva na chvíli. */
+function setStatus(text, highlight = false) {
+  const el = document.getElementById("status-log");
+  if (!el) return;
+  el.textContent = text;
+  if (highlight) {
+    el.classList.add("highlight");
+    setTimeout(() => el.classList.remove("highlight"), 1200);
+  }
 }
 
 
-// ── 9. Rozdání karet ───────────────────────────────────────────────────────
+// ── 9. Akce: odhoz karty ──────────────────────────────────────────────────
 
 /**
- * Rozdá každému hráči CONFIG.HAND_SIZE karet z dobíracího balíčku.
- * Karty se rozdávají po jedné každému hráči (jako ve skutečné hře),
- * ne najednou celý balík jednomu hráči.
+ * Odhodí kartu (cardId) z ruky hráče (playerIndex) na odhazovací balíček.
  *
- * Proč po jedné? Férovost a konzistence s budoucí animací rozdávání.
+ * Proč takhle?
+ *   - Dostáváme ID, ne referenci – ID je stabilní i kdyby se pole přeskládalo
+ *   - splice(index, 1) odstraní přesně jeden prvek na daném indexu
+ *   - push() přidá kartu na vršek odhazovacího balíčku
  */
-function dealCards() {
-  for (let card = 0; card < CONFIG.HAND_SIZE; card++) {
-    for (const player of gameState.players) {
-      // Pokud by dobírací balíček náhodou došel, bereme z odhazovacího
-      // (pravidlo: odhazovací se nikdy nemíchá)
-      const source = gameState.drawPile.length > 0
-        ? gameState.drawPile
-        : gameState.discardPile;
-
-      moveCard(source, player.hand);
-    }
+function discardCard(playerIndex, cardId) {
+  const found = findCardInHand(playerIndex, cardId);
+  if (!found) {
+    console.error("Card not found in hand:", cardId);
+    return false;
   }
 
-  console.log("🃏 Cards dealt:");
-  gameState.players.forEach(p => {
-    console.log(`  ${p.name}: ${p.hand.length} cards`, p.hand);
+  const { card, index } = found;
+  gameState.players[playerIndex].hand.splice(index, 1);  // odeber z ruky
+  gameState.discardPile.push(card);                       // polož na odhoz
+
+  setStatus(T().discarded(gameState.players[playerIndex].name, cardLabel(card)), true);
+  console.log(`🗑️  ${gameState.players[playerIndex].name} discarded ${cardLabel(card)}`);
+
+  return true;
+}
+
+
+// ── 10. Posun tahu ─────────────────────────────────────────────────────────
+
+/**
+ * advanceTurn() – volá se po každé odehrané akci.
+ *
+ * Co dělá:
+ *   1. Smaže výběr karty
+ *   2. Zvýší subTurnIndex
+ *   3. Přepne na dalšího hráče (rotace modulo numPlayers)
+ *   4. Zkontroluje jestli kolo skončilo (všichni odehráli 6 podkol)
+ *   5. Pokud kolo skončilo → rozdej nové karty
+ *   6. Překresli UI
+ *   7. Pokud je na tahu AI → naplánuj její tah
+ */
+function advanceTurn() {
+  selectedCard = null;
+
+  const numPlayers   = gameState.players.length;
+  const totalSubTurns = numPlayers * CONFIG.HAND_SIZE;
+
+  gameState.subTurnIndex++;
+
+  // Přepni na dalšího hráče
+  gameState.currentPlayerIndex =
+    (gameState.currentPlayerIndex + 1) % numPlayers;
+
+  // Konec kola?
+  if (gameState.subTurnIndex >= totalSubTurns) {
+    gameState.subTurnIndex = 0;
+    gameState.currentRound++;
+
+    // Zkontroluj jestli jsou oba balíčky prázdné → konec hry
+    const bothEmpty = gameState.drawPile.length === 0
+                   && gameState.discardPile.length === 0;
+    if (bothEmpty) {
+      gameState.phase = "gameEnd";
+      setStatus("Game over!");
+      renderAll();
+      return;
+    }
+
+    dealCards();
+    setStatus(T().newRound(gameState.currentRound), true);
+  }
+
+  renderAll();
+
+  // Je na tahu AI?
+  if (!currentPlayer().isHuman) {
+    scheduleAiTurn();
+  } else {
+    setStatus(T().yourTurn);
+  }
+}
+
+
+// ── 11. AI tah (základní – vlákno 4) ──────────────────────────────────────
+
+/**
+ * Zatím nejjednodušší možná AI: odhodí náhodnou kartu.
+ * V pozdějších vláknech (AI obtížnost) tuto funkci rozšíříme.
+ *
+ * scheduleAiTurn() počká CONFIG.AI_DELAY_MS ms,
+ * aby tah nevypadal okamžitě a hráč měl čas vidět co se děje.
+ */
+function scheduleAiTurn() {
+  setStatus(T().aiThinking);
+  setTimeout(() => {
+    const ai = currentPlayer();
+    if (ai.hand.length === 0) return;
+
+    // Náhodná karta z ruky
+    const randomIndex = Math.floor(Math.random() * ai.hand.length);
+    const card = ai.hand[randomIndex];
+
+    discardCard(ai.index, card.id);
+    advanceTurn();
+  }, CONFIG.AI_DELAY_MS);
+}
+
+
+// ── 12. Systém dvou kliků ─────────────────────────────────────────────────
+
+/**
+ * Klik 1 – hráč klikne na kartu v ruce.
+ * Klik 2 – hráč klikne na cíl (zatím jen odhazovací balíček).
+ *
+ * resolveAction(targetType) dostane řetězec popisující cíl:
+ *   "discard"       → odhoz
+ *   "score-self"    → vlastní bodovací balíček (vlákno 5)
+ *   "score-opponent"→ cizí bodovací balíček / krádež (vlákno 6)
+ */
+
+function onCardClick(playerIndex, cardId) {
+  // Ignoruj klik pokud hráč není na tahu nebo fáze není playing
+  if (gameState.phase !== "playing") return;
+  if (!currentPlayer().isHuman) return;
+  if (playerIndex !== gameState.currentPlayerIndex) return;
+
+  if (selectedCard && selectedCard.cardId === cardId) {
+    // Klikl na stejnou kartu znovu → zruš výběr
+    selectedCard = null;
+    setStatus(T().yourTurn);
+  } else {
+    // Vyber kartu
+    selectedCard = { playerIndex, cardId };
+    setStatus(T().selectTarget);
+  }
+
+  renderHand(gameState.players[0], "hand-player", true);
+}
+
+function onDiscardClick() {
+  if (!selectedCard) return;                    // žádná karta není vybrána
+  if (gameState.phase !== "playing") return;
+  if (!currentPlayer().isHuman) return;
+
+  resolveAction("discard");
+}
+
+function resolveAction(targetType) {
+  if (!selectedCard) return;
+
+  if (targetType === "discard") {
+    const ok = discardCard(selectedCard.playerIndex, selectedCard.cardId);
+    if (ok) {
+      advanceTurn();
+    }
+    return;
+  }
+
+  // Ostatní typy cílů přijdou v dalších vláknech
+  console.log("Target type not yet implemented:", targetType);
+}
+
+
+// ── 13. Renderování ────────────────────────────────────────────────────────
+
+/** Vytvoří DOM element karty. */
+function createCardElement(card, faceUp, isSelected = false) {
+  const el = document.createElement("div");
+  el.classList.add("card");
+
+  if (!faceUp) {
+    el.classList.add("face-down");
+    return el;
+  }
+
+  el.classList.add("face-up");
+  if (RED_SUITS.has(card.suit)) el.classList.add("red");
+  if (card.rank === "Joker")    el.classList.add("joker");
+  if (isSelected)               el.classList.add("selected");
+
+  const label = card.rank === "Joker" ? "🃏" : `${card.rank}${card.suit}`;
+
+  el.innerHTML = `
+    <span class="corner top">${label}</span>
+    <span class="center-rank">${card.rank === "Joker" ? "🃏" : card.rank}</span>
+    <span class="corner bottom">${label}</span>
+  `;
+
+  return el;
+}
+
+/**
+ * Vykreslí ruku hráče jako vějíř na kružnici.
+ *
+ * Stejná logika pro hráče i soupeře – obě ruce jsou "normální" vějíř
+ * s obloukem nahoru. Soupeřovy karty jsou jen otočeny o 180° (rubem dolů).
+ *
+ * Algoritmus:
+ *   - Střed kružnice leží RADIUS px POD spodní hranou kontejneru
+ *   - Každá karta leží na této kružnici v úhlu (i - mid) * SPREAD
+ *   - transform-origin = spodní střed karty → rotace vychází z "dlaně"
+ *   - Výsledek: symetrický oblouk nahoru pro oba hráče
+ */
+function renderHand(player, containerId, clickable = false, fanDown = false) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+
+  const cards = player.hand;
+  const count = cards.length;
+  if (count === 0) return;
+
+  const CARD_W  = 113;
+  const CARD_H  = 162;
+  const SPREAD  = 5;     // stupňů mezi kartami – malé = těsný vějíř
+  const RADIUS  = 600;   // větší = plošší oblouk
+  // Krok = kolik px se každá karta posune doprava; malé = velký překryv
+  const STEP    = CARD_W * 0.18;
+
+  const totalAngle = SPREAD * (count - 1);
+  const startAngle = -totalAngle / 2;
+
+  const containerW = CARD_W + (count - 1) * STEP + 10;
+  const containerH = CARD_H + 30;
+
+  container.style.width    = containerW + "px";
+  container.style.height   = containerH + "px";
+  container.style.position = "relative";
+
+  // Střed kružnice RADIUS px pod kontejnerem
+  const cx = containerW / 2;
+  const cy = containerH + RADIUS;
+
+  cards.forEach((card, i) => {
+    const isSelected = selectedCard
+      && selectedCard.playerIndex === player.index
+      && selectedCard.cardId === card.id;
+
+    const el = createCardElement(card, clickable, isSelected);
+
+    const angleDeg = startAngle + i * SPREAD;
+    const angleRad = angleDeg * Math.PI / 180;
+
+    // Spodní střed karty leží na kružnici
+    const bx   = cx + RADIUS * Math.sin(angleRad);
+    const by   = cy - RADIUS * Math.cos(angleRad);
+    const left = bx - CARD_W / 2;
+    const top  = by - CARD_H;
+
+    el.style.position        = "absolute";
+    el.style.left            = left + "px";
+    el.style.top             = top  + "px";
+    el.style.zIndex          = i + 1;
+    el.style.transformOrigin = `${CARD_W / 2}px ${CARD_H}px`;
+    el.style.transform       = `rotate(${angleDeg}deg)`;
+
+    // Soupeř: stejná geometrie, jen karta otočena o 180° kolem vlastního středu
+    // → vidíme rub, ale vějíř je orientován stejně (oblouk nahoru)
+    if (fanDown) {
+      el.style.transformOrigin = `${CARD_W / 2}px ${CARD_H}px`;
+      el.style.transform       = `rotate(${angleDeg}deg) rotate(180deg) translateY(-${CARD_H}px)`;
+    }
+
+    if (isSelected) {
+      el.style.transform = `translateY(-22px) rotate(${angleDeg}deg)`;
+      el.style.zIndex    = 99;
+    }
+
+    if (clickable && !isSelected) {
+      el.addEventListener("mouseenter", () => {
+        el.style.transform = `translateY(-16px) rotate(${angleDeg}deg)`;
+        el.style.zIndex    = 99;
+      });
+      el.addEventListener("mouseleave", () => {
+        el.style.transform = `rotate(${angleDeg}deg)`;
+        el.style.zIndex    = i + 1;
+      });
+    }
+
+    if (clickable) {
+      el.addEventListener("click", () => onCardClick(player.index, card.id));
+    }
+
+    container.appendChild(el);
   });
 }
 
+/** Vykreslí odhazovací balíček – zobrazí poslední 3 karty překrývající se. */
+function renderDiscardPile() {
+  const wrapper = document.getElementById("discard-pile-cards");
+  const countEl = document.getElementById("discard-count");
+  if (!wrapper) return;
 
-// ── 10. Start hry ─────────────────────────────────────────────────────────
+  wrapper.innerHTML = "";
+  const pile = gameState.discardPile;
+  const show = pile.slice(-3);
 
-/**
- * Spustí hru: vylosuje prvního hráče, rozdá karty, přepne fázi.
- * Tato funkce se volá jednou na začátku každé hry v sérii.
- * Při první hře losuje náhodně, při dalších rotuje o 1.
- *
- * @param {boolean} isFirstGameInSeries - true = losovat, false = rotovat
- */
-function startGame(isFirstGameInSeries = true) {
-  if (isFirstGameInSeries) {
-    // Los: náhodné celé číslo od 0 do počtu hráčů - 1
-    gameState.currentPlayerIndex = Math.floor(Math.random() * gameState.players.length);
-  } else {
-    // Rotace: posun o 1, modulo zajistí přetočení zpět na 0
-    gameState.currentPlayerIndex =
-      (gameState.seriesFirstPlayer + 1) % gameState.players.length;
-  }
+  show.forEach((card, i) => {
+    const el = createCardElement(card, true);
 
-  // Uložíme kdo začal tuto hru v sérii (pro příští rotaci)
-  gameState.seriesFirstPlayer = gameState.currentPlayerIndex;
+    // Náklon odvozený z id karty → deterministický, "náhodně vypadá"
+    // Rozsah -20° až +20° – větší náklon by karty vysouvalo mimo slot
+    const rotation = ((card.id * 37 + 13) % 41) - 20;
 
-  dealCards();
+    el.style.transform = `rotate(${rotation}deg)`;
+    el.style.zIndex    = i + 1; // +1 aby překryl border kontejneru
 
-  gameState.phase = "playing";
+    wrapper.appendChild(el);
+  });
 
-  console.log(`🎲 First player: ${gameState.players[gameState.currentPlayerIndex].name}`);
-  console.log("▶️  Phase:", gameState.phase);
-
-  renderDebug();
+  if (countEl) countEl.textContent = T().cardsLeft(pile.length);
 }
 
+/** Aktualizuje počet karet v dobíracím balíčku. */
+function renderDrawPile() {
+  const countEl = document.getElementById("draw-count");
+  if (countEl) countEl.textContent = T().cardsLeft(gameState.drawPile.length);
+}
 
-// ── 11. Debug výstup na stránku ───────────────────────────────────────────
+/** Aktualizuje turn indicator nahoře. */
+function renderTurnIndicator() {
+  const el = document.getElementById("turn-indicator");
+  if (!el) return;
+  const player = currentPlayer();
+  el.textContent = player.isHuman ? T().yourTurn : T().aiThinking;
+}
 
-function renderDebug() {
-  const container = document.getElementById("debug-output");
-  if (!container || !gameState) return;
+/** Hlavní render – zavolá vše. */
+function renderAll() {
+  const human    = gameState.players[0];
+  const opponent = gameState.players[1];
 
-  const deckSize   = gameState.drawPile.length;
-  const firstPlayer = gameState.players[gameState.currentPlayerIndex];
+  // Popisky
+  const labelPlayer   = document.getElementById("label-player");
+  const labelOpponent = document.getElementById("label-opponent");
+  if (labelPlayer)   labelPlayer.textContent   = human.name;
+  if (labelOpponent) labelOpponent.textContent = opponent.name;
 
-  // Sestavíme řádky pro každého hráče – kolik karet má v ruce
-  const playerRows = gameState.players.map(p => ({
-    label:  `${p.name} – hand`,
-    value:  `${p.hand.length} cards`,
-    status: p.hand.length === CONFIG.HAND_SIZE ? "ok" : "warn",
-    note:   p.hand.map(c => c.suit ? `${c.rank}${c.suit}` : c.rank).join("  "),
-  }));
+  // Ruce
+  renderHand(human,    "hand-player",   true);   // hráč vidí své karty
+  renderHand(opponent, "hand-opponent", false, true);  // soupeř – vějíř dolů
 
-  const rows = [
-    {
-      label:  "Phase",
-      value:  gameState.phase,
-      status: gameState.phase === "playing" ? "ok" : "info",
-    },
-    {
-      label:  T().firstPlayer,
-      value:  firstPlayer ? firstPlayer.name : "—",
-      status: "info",
-    },
-    {
-      label:  "Draw pile remaining",
-      value:  `${deckSize} cards`,
-      status: deckSize === 108 - CONFIG.HAND_SIZE * gameState.players.length ? "ok" : "warn",
-    },
-    ...playerRows,
-    {
-      label:  "Language",
-      value:  currentLang.toUpperCase(),
-      status: "info",
-    },
-  ];
+  // Balíčky
+  renderDiscardPile();
+  renderDrawPile();
 
-  container.innerHTML = rows.map(row => `
-    <div class="debug-row">
-      <span class="debug-label">${row.label}</span>
-      <span class="debug-value ${row.status}">
-        ${row.value}${row.note ? " — " + row.note : ""}
-      </span>
-    </div>
-  `).join("");
+  // Discard pile jako klikatelný cíl
+  const discardEl = document.getElementById("discard-pile");
+  if (discardEl) {
+    // Odstraň starý listener (čistý způsob: nahraď element klonem)
+    const fresh = discardEl.cloneNode(true);
+    discardEl.parentNode.replaceChild(fresh, discardEl);
+    document.getElementById("discard-pile").addEventListener("click", onDiscardClick);
+  }
+
+  // Turn indicator
+  renderTurnIndicator();
+
+  // Highlight odhazovacího balíčku když je karta vybrána
+  const discardFinal = document.getElementById("discard-pile");
+  if (discardFinal) {
+    discardFinal.classList.toggle("target-highlight", selectedCard !== null);
+  }
 }
 
 
 // ── Spuštění ───────────────────────────────────────────────────────────────
 
 initGame(2);
-startGame(true);

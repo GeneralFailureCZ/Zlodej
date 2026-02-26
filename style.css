@@ -1,0 +1,312 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap');
+
+/* ── CSS proměnné ── */
+:root {
+  --bg:        #0d1b12;
+  --felt:      #1a3326;
+  --felt-edge: #0f2318;
+  --gold:      #c9a84c;
+  --gold-dim:  #7a6030;
+  --cream:     #f2e8d0;
+  --red:       #9b2335;
+  --text:      #e8dfc8;
+  --muted:     #6b7c6e;
+  --radius:    8px;
+  --card-w:    113px;
+  --card-h:    162px;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+/* ── Body: celá výška, portrait, tmavý stůl ── */
+body {
+  background-color: var(--bg);
+  background-image:
+    repeating-linear-gradient(
+      45deg, transparent, transparent 2px,
+      rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px
+    );
+  color: var(--text);
+  font-family: 'IM Fell English', serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+#header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--felt-edge);
+  flex-shrink: 0;
+}
+
+#header-bar h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 30px rgba(201,168,76,0.25);
+}
+
+#turn-indicator {
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  background: rgba(201,168,76,0.08);
+  border: 1px solid var(--gold-dim);
+  border-radius: 99px;
+  padding: 0.25rem 0.9rem;
+  text-transform: uppercase;
+}
+
+/* ── Table: portrait, max 480px, fill height ── */
+#table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  min-height: 0;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Player zones ── */
+.player-zone {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Soupeř: vějíř sedí nahoře v zóně */
+#zone-opponent {
+  align-items: flex-start;
+  padding-top: 0.3rem;
+}
+
+/* Hráč: vějíř sedí dole v zóně */
+#zone-player {
+  align-items: flex-end;
+  padding-bottom: 0.3rem;
+}
+
+/* Popisky hráčů (svislý text) */
+.player-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  writing-mode: vertical-rl;
+  flex-shrink: 0;
+}
+
+/* ── Ruka hráče: JS nastaví width/height ── */
+.hand {
+  position: relative;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* ── Bodovací balíček ── */
+.score-pile-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.score-pile-slot {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 7px;
+  border: 1px dashed rgba(201,168,76,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-pile-slot .empty-label {
+  font-size: 0.58rem;
+  color: rgba(201,168,76,0.18);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── Střední řada: draw + discard ── */
+#middle-row {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.4rem 0;
+  width: 100%;
+}
+
+.pile-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pile-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pile-count {
+  font-family: 'Cinzel', serif;
+  font-size: 0.6rem;
+  color: var(--gold-dim);
+  text-align: center;
+}
+
+/* ── Dobírací balíček (dekorativní) ── */
+#draw-pile {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 7px;
+  border: 1px solid var(--gold-dim);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      #1e4030, #1e4030 4px,
+      #172e23 4px, #172e23 8px
+    );
+}
+
+/* ── Odhazovací balíček ── */
+#discard-pile {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 7px;
+  border: 2px dashed var(--gold-dim);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+#discard-pile:hover,
+#discard-pile.target-highlight {
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(201,168,76,0.2);
+}
+
+#discard-pile-cards {
+  position: absolute;
+  inset: 0;
+}
+
+/* Karty na odhazovacím balíčku – neklikatelné, bez hover */
+#discard-pile-cards .card {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  cursor: default;
+}
+#discard-pile-cards .card.face-up,
+#discard-pile-cards .card.face-up:hover {
+  cursor: default;
+  box-shadow: none;
+}
+
+/* ── Karta ── */
+.card {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px;
+  cursor: default;
+  user-select: none;
+  position: relative;
+  transition: box-shadow 0.15s;
+  font-family: 'IM Fell English', serif;
+  flex-shrink: 0;
+}
+
+.card.face-up {
+  background: var(--cream);
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.card.face-down {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      #1e4030, #1e4030 4px,
+      #172e23 4px, #172e23 8px
+    );
+  border-color: var(--gold-dim);
+}
+
+.card.selected {
+  box-shadow: 0 0 0 2px var(--gold), 0 14px 28px rgba(201,168,76,0.35) !important;
+}
+
+.card .corner {
+  font-size: 0.95rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.card .corner.bottom {
+  align-self: flex-end;
+  transform: rotate(180deg);
+}
+
+.card .center-suit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.4rem;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.card.red   { color: var(--red); }
+.card.joker { color: #6b3fa0; }
+
+/* ── Stavový log ── */
+#status-log {
+  flex-shrink: 0;
+  background: var(--felt);
+  border-top: 2px solid var(--gold-dim);
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-style: italic;
+  transition: color 0.3s;
+  width: 100%;
+  text-align: center;
+}
+
+#status-log.highlight { color: var(--gold); }
+
+/* ── Debug (skrytý) ── */
+#debug-panel { display: none; }
