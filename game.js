@@ -1,15 +1,21 @@
 /**
  * ZLODĚJ – Card Game
- * game.js – Vlákno 1: Datové struktury a inicializace
- * ──────────────────────────────────────────────────────
- * Tento soubor obsahuje:
+ * game.js – Vlákno 1 + 2: Datové struktury, inicializace, rozdávání
+ * ──────────────────────────────────────────────────────────────────
+ * Vlákno 1:
  *   1. Lokalizační objekt LANG
- *   2. Konfiguraci CONFIG a herní konstanty
+ *   2. Konfigurace CONFIG a herní konstanty
  *   3. Vytvoření balíčku (createDeck)
  *   4. Zamíchání (shuffle – Fisher-Yates)
  *   5. Herní stav gameState
- *   6. Inicializaci hry (initGame)
- *   7. Debug výstup do stránky
+ *   6. Vytvoření hráče (createPlayer)
+ *   7. Inicializace hry (initGame)
+ *
+ * Vlákno 2:
+ *   8. Přesun karty (moveCard)
+ *   9. Rozdání karet (dealCards)
+ *  10. Start hry (startGame)
+ *  11. Debug výstup na stránku (renderDebug)
  */
 
 // ── 1. Lokalizace ──────────────────────────────────────────────────────────
@@ -22,6 +28,8 @@ const LANG = {
     discard:      "Discard pile",
     scorePile:    "Score pile",
     joker:        "Joker",
+    dealtCards:   "Cards dealt",
+    firstPlayer:  "Goes first",
   },
   cs: {
     playerName:   "Hráč",
@@ -30,27 +38,27 @@ const LANG = {
     discard:      "Odhazovací balíček",
     scorePile:    "Bodovací balíček",
     joker:        "Žolík",
+    dealtCards:   "Rozdané karty",
+    firstPlayer:  "Začíná",
   }
 };
 
 let currentLang = "en";
 
-// T() vždy vrátí aktivní překlad – funguje správně i po přepnutí jazyka
+// T() vždy vrátí aktivní překlad
 const T = () => LANG[currentLang];
 
 
 // ── 2. Konfigurace a konstanty ─────────────────────────────────────────────
 
 const CONFIG = {
-  HAND_SIZE:        6,        // karet v ruce na začátku kola
-  DECKS:            2,        // počet francouzských balíčků
-  JOKERS_PER_DECK:  2,        // žolíků v jednom balíčku
+  HAND_SIZE:        6,
+  DECKS:            2,
+  JOKERS_PER_DECK:  2,
   ANIMATION_SPEED: "normal",  // slow | normal | fast | off
 };
 
 const SUITS = ["♠", "♥", "♦", "♣"];
-
-// Žolík je poslední – slice(0, -1) ho odřízne při iteraci normálních karet
 const RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A","Joker"];
 
 const CARD_VALUES = {
@@ -64,19 +72,13 @@ const CARD_VALUES = {
 
 // ── 3. Vytvoření balíčku ───────────────────────────────────────────────────
 
-/**
- * Vytvoří nový nezamíchaný balíček (nebo více balíčků dle CONFIG.DECKS).
- * Každá karta je objekt { suit, rank, value, id }.
- * id je globálně unikátní – nutné kvůli duplicitám ze dvou balíčků.
- */
 function createDeck() {
   const deck = [];
   let idCounter = 0;
 
   for (let d = 0; d < CONFIG.DECKS; d++) {
-    // Normální karty: 4 barvy × 13 hodnot = 52 karet na balíček
     for (const suit of SUITS) {
-      for (const rank of RANKS.slice(0, -1)) { // vše kromě Jokeru
+      for (const rank of RANKS.slice(0, -1)) {
         deck.push({
           suit:  suit,
           rank:  rank,
@@ -85,7 +87,6 @@ function createDeck() {
         });
       }
     }
-    // Žolíci: 2 na balíček, suit = null
     for (let j = 0; j < CONFIG.JOKERS_PER_DECK; j++) {
       deck.push({
         suit:  null,
@@ -96,21 +97,16 @@ function createDeck() {
     }
   }
 
-  return deck; // celkem 108 karet
+  return deck;
 }
 
 
 // ── 4. Zamíchání (Fisher-Yates) ────────────────────────────────────────────
 
-/**
- * Zamíchá pole na místě (mutuje original) a vrátí ho.
- * Fisher-Yates garantuje rovnoměrně náhodnou permutaci.
- * Pozn.: array.sort(() => Math.random() - 0.5) je statisticky nesprávné.
- */
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]]; // ES6 destructuring swap
+    [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
 }
@@ -118,37 +114,26 @@ function shuffle(array) {
 
 // ── 5. Herní stav ──────────────────────────────────────────────────────────
 
-// Deklarujeme proměnnou – initGame() ji vždy přepíše celou
 let gameState = null;
 
 
 // ── 6. Vytvoření hráče ────────────────────────────────────────────────────
 
-/**
- * Tovární funkce pro hráče.
- * @param {number}  index   - pořadí hráče (0 = člověk)
- * @param {boolean} isHuman - true pro lidského hráče
- */
 function createPlayer(index, isHuman) {
   return {
     index:        index,
     isHuman:      isHuman,
     name:         isHuman ? T().playerName : T().aiName,
-    hand:         [],     // karty aktuálně v ruce
-    scorePile:    [],     // pole skupin: [ [karta, karta], [karta], ... ]
-    totalScore:   0,      // průběžný součet bodů ze scorePile
-    inCommitment: false,  // je hráč ve fázi závazku?
+    hand:         [],
+    scorePile:    [],
+    totalScore:   0,
+    inCommitment: false,
   };
 }
 
 
 // ── 7. Inicializace hry ────────────────────────────────────────────────────
 
-/**
- * Vytvoří nový herní stav pro daný počet hráčů.
- * Hráč na indexu 0 je vždy člověk, ostatní jsou AI.
- * @param {number} numPlayers - počet hráčů (2–4), výchozí 2
- */
 function initGame(numPlayers = 2) {
   const deck = shuffle(createDeck());
 
@@ -159,70 +144,140 @@ function initGame(numPlayers = 2) {
 
   gameState = {
     players:            players,
-    drawPile:           deck,       // zamíchaný dobírací balíček
-    discardPile:        [],         // odhazovací balíček – začíná prázdný
-    currentPlayerIndex: 0,          // los se dořeší v vláknu 2
+    drawPile:           deck,
+    discardPile:        [],
+    currentPlayerIndex: 0,
     currentRound:       1,
-    subTurnIndex:       0,          // 0–5: kolikáté podkolo v kole
-    phase:              "init",     // init | dealing | playing | roundEnd | gameEnd
-    seriesScores:       players.map(() => 0),  // průběžné skóre série
-    commitment:         null,       // { playerIndex, card } nebo null
+    subTurnIndex:       0,
+    phase:              "init",
+    seriesScores:       players.map(() => 0),
+    seriesFirstPlayer:  0,   // index hráče který začal aktuální hru v sérii
+    commitment:         null,
   };
 
   console.log("✅ Game initialized:", gameState);
-  console.log("🃏 Deck size:", gameState.drawPile.length);
+}
+
+
+// ── 8. Přesun karty ────────────────────────────────────────────────────────
+
+/**
+ * Vezme kartu z vrchu pole `from` a přidá ji na konec pole `to`.
+ * Tato funkce je centrální bod pro všechny přesuny karet v celé hře.
+ * Sem v budoucnu přidáme animaci – a bude fungovat všude najednou.
+ *
+ * @param {Array} from  - pole ze kterého bereme (např. gameState.drawPile)
+ * @param {Array} to    - pole kam dáváme (např. player.hand)
+ * @returns {Object}    - přesunutá karta (užitečné pro animace a logování)
+ */
+function moveCard(from, to) {
+  // splice(-1, 1) vyjme poslední prvek pole a vrátí ho jako pole s jedním prvkem
+  // [0] na konci z toho pole vytáhne přímo kartu
+  const card = from.splice(-1, 1)[0];
+  to.push(card);
+  return card;
+}
+
+
+// ── 9. Rozdání karet ───────────────────────────────────────────────────────
+
+/**
+ * Rozdá každému hráči CONFIG.HAND_SIZE karet z dobíracího balíčku.
+ * Karty se rozdávají po jedné každému hráči (jako ve skutečné hře),
+ * ne najednou celý balík jednomu hráči.
+ *
+ * Proč po jedné? Férovost a konzistence s budoucí animací rozdávání.
+ */
+function dealCards() {
+  for (let card = 0; card < CONFIG.HAND_SIZE; card++) {
+    for (const player of gameState.players) {
+      // Pokud by dobírací balíček náhodou došel, bereme z odhazovacího
+      // (pravidlo: odhazovací se nikdy nemíchá)
+      const source = gameState.drawPile.length > 0
+        ? gameState.drawPile
+        : gameState.discardPile;
+
+      moveCard(source, player.hand);
+    }
+  }
+
+  console.log("🃏 Cards dealt:");
+  gameState.players.forEach(p => {
+    console.log(`  ${p.name}: ${p.hand.length} cards`, p.hand);
+  });
+}
+
+
+// ── 10. Start hry ─────────────────────────────────────────────────────────
+
+/**
+ * Spustí hru: vylosuje prvního hráče, rozdá karty, přepne fázi.
+ * Tato funkce se volá jednou na začátku každé hry v sérii.
+ * Při první hře losuje náhodně, při dalších rotuje o 1.
+ *
+ * @param {boolean} isFirstGameInSeries - true = losovat, false = rotovat
+ */
+function startGame(isFirstGameInSeries = true) {
+  if (isFirstGameInSeries) {
+    // Los: náhodné celé číslo od 0 do počtu hráčů - 1
+    gameState.currentPlayerIndex = Math.floor(Math.random() * gameState.players.length);
+  } else {
+    // Rotace: posun o 1, modulo zajistí přetočení zpět na 0
+    gameState.currentPlayerIndex =
+      (gameState.seriesFirstPlayer + 1) % gameState.players.length;
+  }
+
+  // Uložíme kdo začal tuto hru v sérii (pro příští rotaci)
+  gameState.seriesFirstPlayer = gameState.currentPlayerIndex;
+
+  dealCards();
+
+  gameState.phase = "playing";
+
+  console.log(`🎲 First player: ${gameState.players[gameState.currentPlayerIndex].name}`);
+  console.log("▶️  Phase:", gameState.phase);
 
   renderDebug();
 }
 
 
-// ── 8. Debug výstup na stránku ────────────────────────────────────────────
+// ── 11. Debug výstup na stránku ───────────────────────────────────────────
 
-/**
- * Vyplní #debug-output základními ověřovacími informacemi.
- * Tato funkce bude v pozdějších vláknech nahrazena herním UI.
- */
 function renderDebug() {
   const container = document.getElementById("debug-output");
   if (!container || !gameState) return;
 
-  const deckSize    = gameState.drawPile.length;
-  const deckOk      = deckSize === 108;
-  const idsUnique   = new Set(gameState.drawPile.map(c => c.id)).size === deckSize;
-  const jokerCount  = gameState.drawPile.filter(c => c.rank === "Joker").length;
-  const jokersOk    = jokerCount === CONFIG.DECKS * CONFIG.JOKERS_PER_DECK;
+  const deckSize   = gameState.drawPile.length;
+  const firstPlayer = gameState.players[gameState.currentPlayerIndex];
+
+  // Sestavíme řádky pro každého hráče – kolik karet má v ruce
+  const playerRows = gameState.players.map(p => ({
+    label:  `${p.name} – hand`,
+    value:  `${p.hand.length} cards`,
+    status: p.hand.length === CONFIG.HAND_SIZE ? "ok" : "warn",
+    note:   p.hand.map(c => c.suit ? `${c.rank}${c.suit}` : c.rank).join("  "),
+  }));
 
   const rows = [
     {
-      label: "Deck size",
-      value: deckSize,
-      status: deckOk ? "ok" : "warn",
-      note: deckOk ? "✓ 108 cards" : "✗ expected 108",
+      label:  "Phase",
+      value:  gameState.phase,
+      status: gameState.phase === "playing" ? "ok" : "info",
     },
     {
-      label: "Unique IDs",
-      value: idsUnique ? "All unique" : "COLLISION",
-      status: idsUnique ? "ok" : "warn",
-    },
-    {
-      label: "Jokers",
-      value: jokerCount,
-      status: jokersOk ? "ok" : "warn",
-      note: jokersOk ? `✓ ${CONFIG.DECKS} decks × ${CONFIG.JOKERS_PER_DECK}` : "✗ mismatch",
-    },
-    {
-      label: "Players",
-      value: gameState.players.map(p => p.name).join(", "),
+      label:  T().firstPlayer,
+      value:  firstPlayer ? firstPlayer.name : "—",
       status: "info",
     },
     {
-      label: "Phase",
-      value: gameState.phase,
-      status: "info",
+      label:  "Draw pile remaining",
+      value:  `${deckSize} cards`,
+      status: deckSize === 108 - CONFIG.HAND_SIZE * gameState.players.length ? "ok" : "warn",
     },
+    ...playerRows,
     {
-      label: "Language",
-      value: currentLang.toUpperCase(),
+      label:  "Language",
+      value:  currentLang.toUpperCase(),
       status: "info",
     },
   ];
@@ -241,3 +296,4 @@ function renderDebug() {
 // ── Spuštění ───────────────────────────────────────────────────────────────
 
 initGame(2);
+startGame(true);
