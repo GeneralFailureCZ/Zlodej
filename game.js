@@ -1,44 +1,56 @@
 /**
  * ZLODĚJ – Card Game
- * game.js – Vlákno 5: Vykládání karet na bodovací balíček + závazek
+ * game.js – Vlákno 6: Krádež z bodovacího balíčku + algoritmus rozdělení
  */
 
 // ── 1. Lokalizace ──────────────────────────────────────────────────────────
 
 const LANG = {
   en: {
-    playerName:    "Player",
-    aiName:        "Computer",
-    draw:          "Draw",
-    discard:       "Discard",
-    scorePile:     "Score",
-    joker:         "Joker",
-    yourTurn:      "Your turn — select a card",
-    selectTarget:  "Now choose where to play it",
-    aiThinking:    "Computer is thinking…",
-    discarded:     (name, card) => `${name} discarded ${card}.`,
-    newRound:      (n) => `Round ${n} — cards dealt.`,
-    commitStart:   (name, card) => `${name} started commitment with ${card}.`,
-    commitDone:    (name, card) => `${name} completed pair with ${card}.`,
-    commitBlocked: (rank) => `Complete your commitment — play a ${rank}.`,
-    noPair:        (card) => `No pair for ${card} in hand.`,
+    playerName:       "Player",
+    aiName:           "Computer",
+    draw:             "Draw",
+    discard:          "Discard",
+    scorePile:        "Score",
+    joker:            "Joker",
+    yourTurn:         "Your turn — select a card",
+    selectTarget:     "Now choose where to play it",
+    aiThinking:       "Computer is thinking…",
+    discarded:        (name, card) => `${name} discarded ${card}.`,
+    newRound:         (n) => `Round ${n} — cards dealt.`,
+    commitStart:      (name, card) => `${name} started commitment with ${card}.`,
+    commitDone:       (name, card) => `${name} completed pair with ${card}.`,
+    commitBlocked:    (rank) => `Complete your commitment — play a ${rank}.`,
+    noPair:           (card) => `No pair for ${card} in hand.`,
+    tookFromDiscard:  (name, card) => `${name} took from discard with ${card}.`,
+    stolen:           (name, card) => `${name} stole with ${card}.`,
+    cantSteal:        "Cannot steal — opponent is in commitment.",
+    cantStealEmpty:   "Nothing to steal.",
+    cantStealRank:    "Card rank doesn't match the top group.",
+    addedToGroup:     (name, card) => `${name} added ${card} to their group.`,
   },
   cs: {
-    playerName:    "Hráč",
-    aiName:        "Počítač",
-    draw:          "Dobírací",
-    discard:       "Odhoz",
-    scorePile:     "Body",
-    joker:         "Žolík",
-    yourTurn:      "Tvůj tah — vyber kartu",
-    selectTarget:  "Vyber kam kartu zahraješ",
-    aiThinking:    "Počítač přemýšlí…",
-    discarded:     (name, card) => `${name} odhodil ${card}.`,
-    newRound:      (n) => `Kolo ${n} — rozdány karty.`,
-    commitStart:   (name, card) => `${name} začal závazek kartou ${card}.`,
-    commitDone:    (name, card) => `${name} dokončil pár kartou ${card}.`,
-    commitBlocked: (rank) => `Musíš dokončit závazek — zahraj ${rank}.`,
-    noPair:        (card) => `V ruce není pár pro ${card}.`,
+    playerName:       "Hráč",
+    aiName:           "Počítač",
+    draw:             "Dobírací",
+    discard:          "Odhoz",
+    scorePile:        "Body",
+    joker:            "Žolík",
+    yourTurn:         "Tvůj tah — vyber kartu",
+    selectTarget:     "Vyber kam kartu zahraješ",
+    aiThinking:       "Počítač přemýšlí…",
+    discarded:        (name, card) => `${name} odhodil ${card}.`,
+    newRound:         (n) => `Kolo ${n} — rozdány karty.`,
+    commitStart:      (name, card) => `${name} začal závazek kartou ${card}.`,
+    commitDone:       (name, card) => `${name} dokončil pár kartou ${card}.`,
+    commitBlocked:    (rank) => `Musíš dokončit závazek — zahraj ${rank}.`,
+    noPair:           (card) => `V ruce není pár pro ${card}.`,
+    tookFromDiscard:  (name, card) => `${name} dobral z odhazu kartou ${card}.`,
+    stolen:           (name, card) => `${name} ukradl kartou ${card}.`,
+    cantSteal:        "Nelze krást — soupeř je v závazku.",
+    cantStealEmpty:   "Není co krást.",
+    cantStealRank:    "Rank karty nesedí na vrchní skupinu.",
+    addedToGroup:     (name, card) => `${name} přiložil ${card} ke skupině.`,
   }
 };
 
@@ -95,7 +107,7 @@ function shuffle(array) {
 // ── 4. Herní stav ──────────────────────────────────────────────────────────
 
 let gameState    = null;
-let selectedCard = null;   // { playerIndex, cardId } nebo null
+let selectedCard = null;
 
 
 // ── 5. Hráč ───────────────────────────────────────────────────────────────
@@ -106,8 +118,6 @@ function createPlayer(index, isHuman) {
     isHuman,
     name:         isHuman ? T().playerName : T().aiName,
     hand:         [],
-    // scorePile = pole skupin, každá skupina = pole karet
-    // př. [ [K♠, K♥], [7♦, 7♣] ]
     scorePile:    [],
     totalScore:   0,
     inCommitment: false,
@@ -133,6 +143,21 @@ function dealCards() {
     }
   }
   gameState.phase = "playing";
+
+  // ── DOČASNÉ: testovací skupina na bodovacím balíčku AI ──
+  // Smazat až bude fungovat AI logika krádeže.
+  if (gameState.currentRound === 1) {
+  const ai        = gameState.players[1];
+  const firstCard = gameState.drawPile.pop();
+  const pairCard  = gameState.drawPile.find(c => c.rank === firstCard.rank);
+  if (pairCard) {
+    gameState.drawPile.splice(gameState.drawPile.indexOf(pairCard), 1);
+    ai.scorePile.push([firstCard, pairCard]);
+    ai.totalScore = calcScore(ai);
+  } else {
+    gameState.drawPile.push(firstCard);
+  }
+  } // konec if currentRound === 1
 }
 
 
@@ -156,8 +181,6 @@ function initGame(numPlayers = 2) {
     phase:              "init",
     seriesScores:       players.map(() => 0),
   };
-
-  console.log(`🎲 First player: ${players[firstPlayer].name} (index ${firstPlayer})`);
 
   dealCards();
   setStatus(T().newRound(1));
@@ -202,7 +225,171 @@ function calcScore(player) {
 }
 
 
-// ── 9. Akce: odhoz karty ──────────────────────────────────────────────────
+// ── 9. Algoritmus rozdělení karet do skupin ───────────────────────────────
+
+/**
+ * splitIntoGroups(cards) – rozdělí pole karet do skupin podle pravidel.
+ *
+ * Pravidla:
+ *   - Skupiny po 2 kartách
+ *   - Spodní skupina může mít 3 karty (pokud je celkový počet lichý)
+ *   - Žádná karta nesmí být ve skupině sama
+ *   - Žolíci vždy na první místo skupiny, priorita odspodu
+ *   - Max. 1 žolík na skupinu
+ *
+ * Postup:
+ *   1. Odděl žolíky od normálních karet
+ *   2. Rozděl normální karty do skupin (spodní dostane 3 pokud lichý počet)
+ *   3. Vlož žolíky odspodu — jeden do každé skupiny
+ *
+ * Vrací pole skupin (pole polí) seřazených odspodu nahoru.
+ */
+function splitIntoGroups(cards) {
+  // Krok 1: odděl žolíky
+  const jokers  = cards.filter(c => c.rank === "Joker");
+  const normals = cards.filter(c => c.rank !== "Joker");
+
+  // Krok 2: rozděl normální karty do skupin
+  // Lichý počet → spodní skupina dostane 3 karty
+  const groups = [];
+  let i = 0;
+
+  if (normals.length % 2 !== 0) {
+    // Spodní skupina: první 3 karty
+    groups.push(normals.slice(0, 3));
+    i = 3;
+  }
+
+  // Zbytek po 2
+  while (i < normals.length) {
+    groups.push(normals.slice(i, i + 2));
+    i += 2;
+  }
+
+  // Okrajový případ: žádné normální karty (nemělo by nastat, ale pro jistotu)
+  if (groups.length === 0 && jokers.length > 0) {
+    // Nemůže nastat dle pravidel hry, ale raději nepadneme
+    console.warn("splitIntoGroups: only jokers, no normal cards");
+    groups.push([]);
+  }
+
+  // Krok 3: vlož žolíky odspodu — jeden do každé skupiny
+  // jokers[0] → groups[0] (spodní), jokers[1] → groups[1] atd.
+  jokers.forEach((joker, idx) => {
+    if (idx < groups.length) {
+      groups[idx].unshift(joker);  // unshift = vloží na začátek (index 0) skupiny
+    }
+  });
+
+  return groups;
+}
+
+
+// ── 10. Akce: krádež z bodovacího balíčku ────────────────────────────────
+
+/**
+ * stealFromScorePile(thiefIndex, cardId, victimIndex)
+ *
+ * Postup:
+ *   1. Zkontroluj že oběť není v závazku
+ *   2. Zkontroluj že oběť má neprázdný scorePile
+ *   3. Vezmi vrchní skupinu oběti (scorePile.pop())
+ *   4. Urči rank krádeže:
+ *      - Karta zloděje není žolík → rank = rank karty zloděje
+ *      - Karta zloděje je žolík → rank = rank karet v ukradené skupině
+ *   5. Zkontroluj shodu ranku s ukradnou skupinou (nebo žolík pravidlo)
+ *   6. Zkontroluj vlastní vrchní skupinu zloděje — stejný rank? → přidej do hromádky
+ *   7. Spusť splitIntoGroups() na všechny karty dohromady
+ *   8. Přidej výsledné skupiny na scorePile zloděje
+ */
+function stealFromScorePile(thiefIndex, cardId, victimIndex) {
+  const thief  = gameState.players[thiefIndex];
+  const victim = gameState.players[victimIndex];
+
+  // Zloděj v závazku nemůže krást
+  if (thief.inCommitment) {
+    const neededRank = thief.scorePile[thief.scorePile.length - 1][0].rank;
+    setStatus(T().commitBlocked(neededRank));
+    return false;
+  }
+
+  // Oběť nemá co krást
+  if (victim.scorePile.length === 0) {
+    setStatus(T().cantStealEmpty);
+    return false;
+  }
+
+  // Oběť je v závazku — osamělá karta není kraditelná
+  if (victim.inCommitment) {
+    setStatus(T().cantSteal);
+    return false;
+  }
+
+  const found = findCardInHand(thiefIndex, cardId);
+  if (!found) return false;
+
+  const { card: thiefCard, index: thiefIndex2 } = found;
+  const stolenGroup = victim.scorePile[victim.scorePile.length - 1];
+
+  // Urči rank krádeže
+  const thiefIsJoker  = thiefCard.rank === "Joker";
+  const stolenIsJoker = stolenGroup.some(c => c.rank === "Joker");
+
+  // Rank ukradené skupiny = rank první ne-žolíkové karty ve skupině
+  const stolenRank = stolenGroup.find(c => c.rank !== "Joker")?.rank;
+
+  // Ověř shodu:
+  // - žolík se žolíkem nelze (ukradená skupina by musela být čistě žolíková — nemělo by nastat)
+  // - karta zloděje není žolík → musí sedět rank
+  if (!thiefIsJoker && thiefCard.rank !== stolenRank) {
+    setStatus(T().cantStealRank);
+    return false;
+  }
+
+  // Žolík krade žolíka — nepřipustné (žolík se žolíkem nelze)
+  if (thiefIsJoker && stolenIsJoker && stolenGroup.every(c => c.rank === "Joker")) {
+    setStatus(T().cantStealRank);
+    return false;
+  }
+
+  // ── Krádež proběhne ──
+
+  // Odeber kartu z ruky zloděje
+  thief.hand.splice(thiefIndex2, 1);
+
+  // Odeber vrchní skupinu oběti
+  victim.scorePile.pop();
+  victim.totalScore = calcScore(victim);
+
+  // Urči rank pro porovnání s vlastní skupinou zloděje
+  const stealRank = thiefIsJoker ? stolenRank : thiefCard.rank;
+
+  // Zkontroluj vlastní vrchní skupinu zloděje — stejný rank → přidej do hromádky
+  let ownGroup = [];
+  if (thief.scorePile.length > 0) {
+    const topGroup     = thief.scorePile[thief.scorePile.length - 1];
+    const topGroupRank = topGroup.find(c => c.rank !== "Joker")?.rank;
+    if (topGroupRank === stealRank) {
+      ownGroup = thief.scorePile.pop();  // vytáhneme celou skupinu
+    }
+  }
+
+  // Slož všechny karty dohromady: karta zloděje + ukradená skupina + vlastní skupina
+  const allCards = [thiefCard, ...stolenGroup, ...ownGroup];
+
+  // Rozděl algoritmem
+  const newGroups = splitIntoGroups(allCards);
+
+  // Přidej výsledné skupiny na scorePile zloděje (odspodu nahoru)
+  newGroups.forEach(group => thief.scorePile.push(group));
+  thief.totalScore = calcScore(thief);
+
+  setStatus(T().stolen(thief.name, cardLabel(thiefCard)), true);
+  return true;
+}
+
+
+// ── 11. Akce: odhoz karty ──────────────────────────────────────────────────
 
 function discardCard(playerIndex, cardId) {
   const player = gameState.players[playerIndex];
@@ -225,17 +412,68 @@ function discardCard(playerIndex, cardId) {
 }
 
 
-// ── 10. Akce: vyložení na bodovací balíček ────────────────────────────────
+// ── 12. Akce: vzít z odhazovacího balíčku ────────────────────────────────
 
 /**
- * playToScorePile() – viz komentář v předchozím vlákně.
+ * takeFromDiscard() – hráč kliknul na odhazovací balíček s vybranou kartou.
  *
- * Případ B (inCommitment = true): dokládá druhou kartu.
- *   – zkontroluje rank, přidá do poslední skupiny, zavře závazek.
- *
- * Případ A (inCommitment = false): začíná závazek.
- *   – zkontroluje pár v ruce, vytvoří novou skupinu s jednou kartou.
+ * Pravidla:
+ *   - Žolík se žolíkem nelze
+ *   - Rank sedí → normální pár
+ *   - Jedna strana je žolík → pár
+ *   - Jinak → prostý odhoz
  */
+function takeFromDiscard(playerIndex, cardId) {
+  const player = gameState.players[playerIndex];
+
+  if (player.inCommitment) {
+    const neededRank = player.scorePile[player.scorePile.length - 1][0].rank;
+    setStatus(T().commitBlocked(neededRank));
+    return false;
+  }
+
+  const found = findCardInHand(playerIndex, cardId);
+  if (!found) return false;
+
+  const { card, index } = found;
+
+  if (gameState.discardPile.length === 0) {
+    return discardCard(playerIndex, cardId);
+  }
+
+  const topCard   = gameState.discardPile[gameState.discardPile.length - 1];
+  const handJoker = card.rank === "Joker";
+  const topJoker  = topCard.rank === "Joker";
+
+  const rankMatch  = card.rank === topCard.rank;
+  const jokerMatch = (handJoker && !topJoker) || (!handJoker && topJoker);
+
+  if (!rankMatch && !jokerMatch) {
+    return discardCard(playerIndex, cardId);
+  }
+
+  // Žolík vždy spodní (první v poli)
+  let group;
+  if (handJoker) {
+    group = [card, topCard];
+  } else if (topJoker) {
+    group = [topCard, card];
+  } else {
+    group = [card, topCard];
+  }
+
+  player.hand.splice(index, 1);
+  gameState.discardPile.pop();
+  player.scorePile.push(group);
+  player.totalScore = calcScore(player);
+
+  setStatus(T().tookFromDiscard(player.name, cardLabel(card)), true);
+  return true;
+}
+
+
+// ── 13. Akce: vyložení na bodovací balíček ────────────────────────────────
+
 function playToScorePile(playerIndex, cardId) {
   const player = gameState.players[playerIndex];
   const found  = findCardInHand(playerIndex, cardId);
@@ -243,7 +481,7 @@ function playToScorePile(playerIndex, cardId) {
 
   const { card, index } = found;
 
-  // Případ B: dokládáme druhou kartu
+  // Případ B: dokládáme druhou kartu závazku
   if (player.inCommitment) {
     const lastGroup  = player.scorePile[player.scorePile.length - 1];
     const neededRank = lastGroup[0].rank;
@@ -262,24 +500,51 @@ function playToScorePile(playerIndex, cardId) {
     return true;
   }
 
-  // Případ A: nový závazek
+  // Případ A: nový závazek — hráč má pár v ruce
   const hasPair = player.hand.some((c, i) => i !== index && c.rank === card.rank);
-  if (!hasPair) {
-    setStatus(T().noPair(cardLabel(card)));
-    return false;
+
+  if (hasPair) {
+    player.hand.splice(index, 1);
+    player.scorePile.push([card]);
+    player.inCommitment = true;
+    player.totalScore   = calcScore(player);
+
+    setStatus(T().commitStart(player.name, cardLabel(card)), true);
+    return true;
   }
 
-  player.hand.splice(index, 1);
-  player.scorePile.push([card]);
-  player.inCommitment = true;
-  player.totalScore   = calcScore(player);
+  // Případ C: přiložení na vlastní vrchní skupinu stejného ranku
+  // Podmínky: hráč není v závazku (ošetřeno výše), karta není žolík,
+  // vlastní scorePile není prázdný, vrchní skupina má stejný rank.
+  if (card.rank !== "Joker" && player.scorePile.length > 0) {
+    const topGroup     = player.scorePile[player.scorePile.length - 1];
+    const topGroupRank = topGroup.find(c => c.rank !== "Joker")?.rank;
 
-  setStatus(T().commitStart(player.name, cardLabel(card)), true);
-  return true;
+    if (topGroupRank === card.rank) {
+      player.hand.splice(index, 1);
+      topGroup.push(card);
+
+      // Pokud má skupina 4+ karet → rozděl algoritmem
+      // (3 karty jsou ok — spodní skupina může mít max. 3)
+      if (topGroup.length >= 4) {
+        player.scorePile.pop();                       // vyjmi skupinu
+        const newGroups = splitIntoGroups(topGroup);  // rozděl
+        newGroups.forEach(g => player.scorePile.push(g)); // vrať zpět
+      }
+
+      player.totalScore = calcScore(player);
+      setStatus(T().addedToGroup(player.name, cardLabel(card)), true);
+      return true;
+    }
+  }
+
+  // Žádná z možností — karta na vlastní balíček nejde
+  setStatus(T().noPair(cardLabel(card)));
+  return false;
 }
 
 
-// ── 11. Posun tahu ─────────────────────────────────────────────────────────
+// ── 14. Posun tahu ─────────────────────────────────────────────────────────
 
 function advanceTurn() {
   selectedCard = null;
@@ -322,7 +587,7 @@ function advanceTurn() {
 }
 
 
-// ── 12. AI tah ─────────────────────────────────────────────────────────────
+// ── 15. AI tah ─────────────────────────────────────────────────────────────
 
 function scheduleAiTurn() {
   setStatus(T().aiThinking);
@@ -347,7 +612,7 @@ function scheduleAiTurn() {
 }
 
 
-// ── 13. Systém dvou kliků ─────────────────────────────────────────────────
+// ── 16. Systém dvou kliků ─────────────────────────────────────────────────
 
 function onCardClick(playerIndex, cardId) {
   if (gameState.phase !== "playing") return;
@@ -377,15 +642,21 @@ function onDiscardClick() {
 
 function onScorePileClick(playerIndex) {
   if (!selectedCard || gameState.phase !== "playing" || !currentPlayer().isHuman) return;
-  if (playerIndex !== gameState.currentPlayerIndex) return;
-  resolveAction("score-self");
+
+  if (playerIndex === gameState.currentPlayerIndex) {
+    // Klik na vlastní balíček → vyložení / závazek
+    resolveAction("score-self");
+  } else {
+    // Klik na cizí balíček → krádež
+    resolveAction("score-steal", playerIndex);
+  }
 }
 
-function resolveAction(targetType) {
+function resolveAction(targetType, targetPlayerIndex) {
   if (!selectedCard) return;
 
   if (targetType === "discard") {
-    const ok = discardCard(selectedCard.playerIndex, selectedCard.cardId);
+    const ok = takeFromDiscard(selectedCard.playerIndex, selectedCard.cardId);
     if (ok) advanceTurn();
     return;
   }
@@ -396,11 +667,17 @@ function resolveAction(targetType) {
     return;
   }
 
+  if (targetType === "score-steal") {
+    const ok = stealFromScorePile(selectedCard.playerIndex, selectedCard.cardId, targetPlayerIndex);
+    if (ok) advanceTurn();
+    return;
+  }
+
   console.log("Target type not yet implemented:", targetType);
 }
 
 
-// ── 14. Renderování ────────────────────────────────────────────────────────
+// ── 17. Renderování ────────────────────────────────────────────────────────
 
 function createCardElement(card, faceUp, isSelected = false) {
   const el = document.createElement("div");
@@ -529,33 +806,14 @@ function renderDiscardPile() {
     wrapper.appendChild(el);
   });
 
-  // Jen číslo
   if (countEl) countEl.textContent = pile.length;
 }
 
 function renderDrawPile() {
   const countEl = document.getElementById("draw-count");
-  // Jen číslo
   if (countEl) countEl.textContent = gameState.drawPile.length;
 }
 
-/**
- * renderScorePile() – vykreslí bodovací balíček hráče.
- *
- * Klíčová změna oproti předchozí verzi:
- *   Každá .score-group je position:absolute, top:0, left:0
- *   → všechny skupiny leží na stejném místě ve slotu, překryté jako skutečný balíček.
- *
- * Zobrazujeme VŠECHNY skupiny (ne jen poslední 2), ale spodní skupiny
- * jsou překryté těmi vrchními — stejně jako fyzický balíček karet.
- * z-index roste s indexem skupiny → vrchní skupina je vidět nahoře.
- *
- * Otočení:
- *   - Závazek (skupina s 1 kartou) → 45°
- *   - Dokončená skupina → sudý absoluteIndex = 0°, lichý = 90°
- *
- * Počítadlo skupin: jen číslo v .score-pile-count pod slotem.
- */
 function renderScorePile(player, slotId, countId, scoreId) {
   const slot = document.getElementById(slotId);
   if (!slot) return;
@@ -576,14 +834,12 @@ function renderScorePile(player, slotId, countId, scoreId) {
         rotation = absoluteIndex % 2 === 0 ? 0 : 90;
       }
 
-      // Wrapper pro skupinu — leží přesně na místě slotu
       const wrapper = document.createElement("div");
       wrapper.classList.add("score-group");
       if (isCommitment) wrapper.classList.add("commitment");
       wrapper.style.transform = `rotate(${rotation}deg)`;
-      wrapper.style.zIndex    = absoluteIndex + 1;  // vrchní skupina = nejvyšší z-index
+      wrapper.style.zIndex    = absoluteIndex + 1;
 
-      // Karty ve skupině — malý offset aby bylo vidět že je jich víc
       group.forEach((card, cardIndex) => {
         const el = createCardElement(card, true);
         el.style.position = "absolute";
@@ -597,11 +853,9 @@ function renderScorePile(player, slotId, countId, scoreId) {
     });
   }
 
-  // Počítadlo skupin — jen číslo
   const countEl = document.getElementById(countId);
   if (countEl) countEl.textContent = pile.length > 0 ? pile.length : "";
 
-  // Skóre
   const scoreEl = document.getElementById(scoreId);
   if (scoreEl) scoreEl.textContent = calcScore(player);
 }
@@ -631,11 +885,19 @@ function renderAll() {
   renderDrawPile();
   renderTurnIndicator();
 
-  // Zvýrazni cíle pokud je vybrána karta
   document.getElementById("discard-pile")
     .classList.toggle("target-highlight", selectedCard !== null);
   document.getElementById("score-pile-player")
     .classList.toggle("target-highlight", selectedCard !== null);
+
+  // Soupeřův balíček se zvýrazní jako cíl pouze pokud je vybrána karta
+  // a soupeř NENÍ v závazku (osamělá karta není kraditelná)
+  const opponent2      = gameState.players[1];
+  const stealable      = selectedCard !== null
+                      && !opponent2.inCommitment
+                      && opponent2.scorePile.length > 0;
+  document.getElementById("score-pile-opponent")
+    .classList.toggle("target-highlight", stealable);
 }
 
 
@@ -649,9 +911,7 @@ function initListeners() {
     .addEventListener("click", () => onScorePileClick(0));
 
   document.getElementById("score-pile-opponent")
-    .addEventListener("click", () => {
-      // placeholder pro vlákno 6: krádež
-    });
+    .addEventListener("click", () => onScorePileClick(1));
 }
 
 
