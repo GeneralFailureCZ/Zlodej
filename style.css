@@ -20,7 +20,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 
-/* ── Body: celá výška, portrait, tmavý stůl ── */
+/* ── Body ── */
 body {
   background-color: var(--bg);
   background-image:
@@ -67,7 +67,7 @@ body {
   text-transform: uppercase;
 }
 
-/* ── Table: portrait, max 480px, fill height ── */
+/* ── Table ── */
 #table {
   flex: 1;
   display: flex;
@@ -92,19 +92,9 @@ body {
   overflow: visible;
 }
 
-/* Soupeř: vějíř přilepený k hornímu okraji */
-#zone-opponent {
-  align-items: flex-start;
-  padding-top: 0;
-}
+#zone-opponent { align-items: flex-start; }
+#zone-player   { align-items: flex-end; }
 
-/* Hráč: vějíř sedí dole v zóně */
-#zone-player {
-  align-items: flex-end;
-  padding-bottom: 0;
-}
-
-/* Popisky hráčů (svislý text) */
 .player-label {
   font-family: 'Cinzel', serif;
   font-size: 0.6rem;
@@ -115,40 +105,100 @@ body {
   flex-shrink: 0;
 }
 
-/* ── Ruka hráče: JS nastaví width/height ── */
+/* ── Ruka hráče ── */
 .hand {
   position: relative;
   flex-shrink: 0;
   overflow: visible;
 }
 
-/* ── Bodovací balíček ── */
+/* ── Bodovací balíček area ── */
 .score-pile-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
   flex-shrink: 0;
 }
 
+/*
+ * Slot má fixní velikost karty.
+ * Skupiny jsou position:absolute uvnitř → všechny leží na stejném místě.
+ * overflow:visible aby otočené skupiny (90°) nebyly oříznuté.
+ */
 .score-pile-slot {
   width: var(--card-w);
   height: var(--card-h);
   border-radius: 7px;
   border: 1px dashed rgba(201,168,76,0.18);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  overflow: visible;
+}
+
+.score-pile-slot:hover,
+.score-pile-slot.target-highlight {
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(201,168,76,0.2);
 }
 
 .score-pile-slot .empty-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.58rem;
   color: rgba(201,168,76,0.18);
   font-style: italic;
+  pointer-events: none;
+}
+
+/* Počítadlo skupin — jen číslo */
+.score-pile-count {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--gold-dim);
+  text-align: center;
+  min-height: 1em;
+}
+
+/* Skóre */
+.score-value {
+  font-family: 'Cinzel', serif;
+  font-size: 0.65rem;
+  color: var(--gold);
   text-align: center;
 }
 
-/* ── Střední řada: draw + discard ── */
+/* ── Skupina karet na bodovacím balíčku ──
+ *
+ * Každá skupina je position:absolute, top:0 left:0
+ * → všechny skupiny leží přesně na sobě na stejném místě ve slotu.
+ *
+ * Otočení (0° / 90° / 45°) se řeší přes transform: rotate().
+ * transform-origin: center center → otáčí se kolem středu karty.
+ *
+ * z-index: skupiny blíže vrcholu balíčku mají vyšší z-index.
+ */
+.score-group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  transform-origin: center center;
+  transition: transform 0.3s ease;
+}
+
+/* Závazek — osamělá karta čeká na doložení */
+.score-group.commitment {
+  filter: drop-shadow(0 0 8px rgba(201,168,76,0.6));
+}
+
+/* ── Střední řada ── */
 #middle-row {
   flex-shrink: 0;
   display: flex;
@@ -174,14 +224,17 @@ body {
   color: var(--muted);
 }
 
+/* Počítadla — jen číslo, žádný text */
 .pile-count {
   font-family: 'Cinzel', serif;
-  font-size: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--gold-dim);
   text-align: center;
+  min-width: 2ch;
 }
 
-/* ── Dobírací balíček (dekorativní) ── */
+/* ── Dobírací balíček ── */
 #draw-pile {
   width: var(--card-w);
   height: var(--card-h);
@@ -217,17 +270,22 @@ body {
   inset: 0;
 }
 
-/* Karty na odhazovacím balíčku – neklikatelné, bez hover */
 #discard-pile-cards .card {
   position: absolute;
-  top: 0; left: 0;
+  top: 0;
+  left: 0;
   pointer-events: none;
   cursor: default;
 }
-#discard-pile-cards .card.face-up,
-#discard-pile-cards .card.face-up:hover {
+
+/*
+ * Karty na odhazovacím balíčku potřebují viditelný border
+ * aby nebyly vizuálně slité — přebíjíme obecné .card pravidlo.
+ */
+#discard-pile-cards .card.face-up {
   cursor: default;
-  box-shadow: none;
+  border: 1.5px solid rgba(120, 90, 40, 0.75);
+  box-shadow: 2px 3px 8px rgba(0,0,0,0.55);
 }
 
 /* ── Karta ── */
@@ -281,14 +339,15 @@ body {
   transform: rotate(180deg);
 }
 
-.card .center-suit {
+.card .center-rank {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 2.4rem;
-  opacity: 0.15;
+  font-size: 2rem;
+  opacity: 0.18;
   pointer-events: none;
+  font-weight: bold;
 }
 
 .card.red   { color: var(--red); }
@@ -310,5 +369,4 @@ body {
 
 #status-log.highlight { color: var(--gold); }
 
-/* ── Debug (skrytý) ── */
 #debug-panel { display: none; }
