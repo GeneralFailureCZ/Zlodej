@@ -121,11 +121,6 @@ body {
   flex-shrink: 0;
 }
 
-/*
- * Slot má fixní velikost karty.
- * Skupiny jsou position:absolute uvnitř → všechny leží na stejném místě.
- * overflow:visible aby otočené skupiny (90°) nebyly oříznuté.
- */
 .score-pile-slot {
   width: var(--card-w);
   height: var(--card-h);
@@ -155,7 +150,7 @@ body {
   pointer-events: none;
 }
 
-/* Počítadlo skupin — jen číslo */
+/* Počítadlo skupin */
 .score-pile-count {
   font-family: 'Cinzel', serif;
   font-size: 0.65rem;
@@ -173,16 +168,7 @@ body {
   text-align: center;
 }
 
-/* ── Skupina karet na bodovacím balíčku ──
- *
- * Každá skupina je position:absolute, top:0 left:0
- * → všechny skupiny leží přesně na sobě na stejném místě ve slotu.
- *
- * Otočení (0° / 90° / 45°) se řeší přes transform: rotate().
- * transform-origin: center center → otáčí se kolem středu karty.
- *
- * z-index: skupiny blíže vrcholu balíčku mají vyšší z-index.
- */
+/* ── Skupina karet na bodovacím balíčku ── */
 .score-group {
   position: absolute;
   top: 0;
@@ -193,9 +179,50 @@ body {
   transition: transform 0.3s ease;
 }
 
-/* Závazek — osamělá karta čeká na doložení */
+/* Závazek */
 .score-group.commitment {
   filter: drop-shadow(0 0 8px rgba(201,168,76,0.6));
+}
+
+/*
+ * Duhový okraj skupiny se žolíkem.
+ *
+ * Aplikuje se na poslední kartu ve skupině (:last-child)
+ * přes ::after pseudo-element — ten sedí přesně přes kartu
+ * a má border s gradientem po obvodu.
+ *
+ * border-radius zachován protože nepoužíváme border-image
+ * ale background gradient na pseudo-elementu.
+ *
+ * Pouze na skupinách které jsou vrchní dvě (.has-joker
+ * se přidává jen tehdy v renderScorePile()).
+ */
+.score-group.has-joker .card:last-child {
+  position: relative;
+}
+
+.score-group.has-joker .card:last-child::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    #ff6b6b,
+    #ffd93d,
+    #6bcb77,
+    #4d96ff,
+    #c77dff,
+    #ff6b6b
+  );
+  /* Trik: background je vidět jen jako okraj díky mask */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* ── Střední řada ── */
@@ -224,7 +251,7 @@ body {
   color: var(--muted);
 }
 
-/* Počítadla — jen číslo, žádný text */
+/* Počítadla */
 .pile-count {
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
@@ -278,10 +305,6 @@ body {
   cursor: default;
 }
 
-/*
- * Karty na odhazovacím balíčku potřebují viditelný border
- * aby nebyly vizuálně slité — přebíjíme obecné .card pravidlo.
- */
 #discard-pile-cards .card.face-up {
   cursor: default;
   border: 1.5px solid rgba(120, 90, 40, 0.75);
