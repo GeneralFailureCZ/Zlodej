@@ -410,8 +410,8 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
   const count = cards.length;
   if (count === 0) return;
 
-  const CARD_W  = 113;
-  const CARD_H  = 162;
+  const CARD_W  = 125;
+  const CARD_H  = 180;
   const SPREAD  = 5;     // stupňů mezi kartami – malé = těsný vějíř
   const RADIUS  = 600;   // větší = plošší oblouk
   // Krok = kolik px se každá karta posune doprava; malé = velký překryv
@@ -427,9 +427,12 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
   container.style.height   = containerH + "px";
   container.style.position = "relative";
 
-  // Střed kružnice RADIUS px pod kontejnerem
+  // Hráč:  střed kružnice RADIUS px POD kontejnerem, oblouk nahoru
+  //         rotace kolem spodního středu karty, angleDeg kladný = doprava
+  // Soupeř: střed kružnice RADIUS px NAD kontejnerem, oblouk dolů
+  //         rotace kolem horního středu karty, angleDeg záporný = zrcadlení
   const cx = containerW / 2;
-  const cy = containerH + RADIUS;
+  const cy = fanDown ? -RADIUS : containerH + RADIUS;
 
   cards.forEach((card, i) => {
     const isSelected = selectedCard
@@ -441,25 +444,32 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
     const angleDeg = startAngle + i * SPREAD;
     const angleRad = angleDeg * Math.PI / 180;
 
-    // Spodní střed karty leží na kružnici
-    const bx   = cx + RADIUS * Math.sin(angleRad);
-    const by   = cy - RADIUS * Math.cos(angleRad);
-    const left = bx - CARD_W / 2;
-    const top  = by - CARD_H;
+    let left, top, origin, transform;
+
+    if (fanDown) {
+      // Horní střed karty leží na kružnici nad kontejnerem
+      const tx = cx + RADIUS * Math.sin(angleRad);
+      const ty = cy + RADIUS * Math.cos(angleRad);
+      left      = tx - CARD_W / 2;
+      top       = ty;
+      origin    = `${CARD_W / 2}px 0px`;
+      transform = `rotate(${-angleDeg}deg)`;  // záporný = oblouk dolů (přirozený pro soupeře)
+    } else {
+      // Spodní střed karty leží na kružnici pod kontejnerem
+      const bx = cx + RADIUS * Math.sin(angleRad);
+      const by = cy - RADIUS * Math.cos(angleRad);
+      left      = bx - CARD_W / 2;
+      top       = by - CARD_H;
+      origin    = `${CARD_W / 2}px ${CARD_H}px`;
+      transform = `rotate(${angleDeg}deg)`;
+    }
 
     el.style.position        = "absolute";
     el.style.left            = left + "px";
     el.style.top             = top  + "px";
     el.style.zIndex          = i + 1;
-    el.style.transformOrigin = `${CARD_W / 2}px ${CARD_H}px`;
-    el.style.transform       = `rotate(${angleDeg}deg)`;
-
-    // Soupeř: stejná geometrie, jen karta otočena o 180° kolem vlastního středu
-    // → vidíme rub, ale vějíř je orientován stejně (oblouk nahoru)
-    if (fanDown) {
-      el.style.transformOrigin = `${CARD_W / 2}px ${CARD_H}px`;
-      el.style.transform       = `rotate(${angleDeg}deg) rotate(180deg) translateY(-${CARD_H}px)`;
-    }
+    el.style.transformOrigin = origin;
+    el.style.transform       = transform;
 
     if (isSelected) {
       el.style.transform = `translateY(-22px) rotate(${angleDeg}deg)`;
@@ -472,7 +482,7 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
         el.style.zIndex    = 99;
       });
       el.addEventListener("mouseleave", () => {
-        el.style.transform = `rotate(${angleDeg}deg)`;
+        el.style.transform = transform;
         el.style.zIndex    = i + 1;
       });
     }
@@ -544,26 +554,38 @@ function renderAll() {
   renderDiscardPile();
   renderDrawPile();
 
-  // Discard pile jako klikatelný cíl
-  const discardEl = document.getElementById("discard-pile");
-  if (discardEl) {
-    // Odstraň starý listener (čistý způsob: nahraď element klonem)
-    const fresh = discardEl.cloneNode(true);
-    discardEl.parentNode.replaceChild(fresh, discardEl);
-    document.getElementById("discard-pile").addEventListener("click", onDiscardClick);
-  }
-
   // Turn indicator
   renderTurnIndicator();
 
-  // Highlight odhazovacího balíčku když je karta vybrána
-  const discardFinal = document.getElementById("discard-pile");
-  if (discardFinal) {
-    discardFinal.classList.toggle("target-highlight", selectedCard !== null);
+  // Highlight klikatelných cílů podle toho zda je vybrána karta
+  // Listenery jsou registrovány jednou v initListeners(), ne zde
+  const discardEl = document.getElementById("discard-pile");
+  if (discardEl) {
+    discardEl.classList.toggle("target-highlight", selectedCard !== null);
   }
+}
+
+
+// ── Inicializace listenerů (jednou při startu) ─────────────────────────────
+
+/**
+ * Všechny statické klikatelné cíle dostávají listener právě jednou.
+ * Dynamické cíle (karty v ruce) se přidávají v renderHand při každém renderu
+ * – to je v pořádku, protože renderHand vždy smaže a znovu vytvoří elementy.
+ *
+ * Proč ne v renderAll?
+ *   renderAll se volá po každém tahu. Kdybychom listener přidávali tam,
+ *   každý render by přidal další kopii → po 10 tazích by jeden klik
+ *   spustil onDiscardClick 10×. Clone hack tento problém obcházel ale
+ *   způsoboval jiné problémy (ztráta potomků, race conditions).
+ */
+function initListeners() {
+  document.getElementById("discard-pile")
+    .addEventListener("click", onDiscardClick);
 }
 
 
 // ── Spuštění ───────────────────────────────────────────────────────────────
 
+initListeners();
 initGame(2);

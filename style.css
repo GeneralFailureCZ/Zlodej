@@ -12,8 +12,8 @@
   --text:      #e8dfc8;
   --muted:     #6b7c6e;
   --radius:    8px;
-  --card-w:    113px;
-  --card-h:    162px;
+  --card-w:    125px;
+  --card-h:    180px;
 }
 
 /* ── Reset ── */
@@ -92,16 +92,16 @@ body {
   overflow: visible;
 }
 
-/* Soupeř: vějíř sedí nahoře v zóně */
+/* Soupeř: vějíř přilepený k hornímu okraji */
 #zone-opponent {
   align-items: flex-start;
-  padding-top: 0.3rem;
+  padding-top: 0;
 }
 
 /* Hráč: vějíř sedí dole v zóně */
 #zone-player {
   align-items: flex-end;
-  padding-bottom: 0.3rem;
+  padding-bottom: 0;
 }
 
 /* Popisky hráčů (svislý text) */
@@ -252,6 +252,7 @@ body {
   background: var(--cream);
   color: #1a1a1a;
   cursor: pointer;
+  box-shadow: -2px 2px 8px rgba(0,0,0,0.45);
 }
 
 .card.face-down {
@@ -262,6 +263,7 @@ body {
       #172e23 4px, #172e23 8px
     );
   border-color: var(--gold-dim);
+  box-shadow: -2px 2px 6px rgba(0,0,0,0.5);
 }
 
 .card.selected {
