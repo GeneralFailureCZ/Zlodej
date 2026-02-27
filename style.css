@@ -78,6 +78,7 @@ body {
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
+  position: relative;
 }
 
 /* ── Player zones ── */
@@ -110,6 +111,7 @@ body {
   position: relative;
   flex-shrink: 0;
   overflow: visible;
+  z-index: 10;
 }
 
 /* ── Bodovací balíček area ── */
@@ -119,6 +121,7 @@ body {
   align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
+  position: relative;
 }
 
 .score-pile-slot {
@@ -130,6 +133,7 @@ body {
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
   overflow: visible;
+  z-index: 1;
 }
 
 .score-pile-slot:hover,
@@ -150,7 +154,6 @@ body {
   pointer-events: none;
 }
 
-/* Počítadlo skupin */
 .score-pile-count {
   font-family: 'Cinzel', serif;
   font-size: 0.65rem;
@@ -160,12 +163,165 @@ body {
   min-height: 1em;
 }
 
-/* Skóre */
 .score-value {
   font-family: 'Cinzel', serif;
   font-size: 0.65rem;
   color: var(--gold);
   text-align: center;
+}
+
+/* ── Action popup (score pile) ── */
+#action-popup {
+  position: absolute;
+  bottom: calc(var(--card-h) + 2.2rem);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(10, 25, 16, 0.97);
+  border: 1px solid var(--gold-dim);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  z-index: 200;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  animation: popup-in 0.15s ease;
+}
+
+/* ── Discard popup — pozicovaný absolutně v #table ── */
+#discard-popup {
+  position: absolute;
+  /* JS nastaví top/left dynamicky podle pozice discard pile */
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(10, 25, 16, 0.97);
+  border: 1px solid var(--gold-dim);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  z-index: 200;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  animation: popup-in 0.15s ease;
+}
+
+#discard-popup.hidden { display: none; }
+
+@keyframes popup-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+#action-popup.hidden { display: none; }
+
+#action-popup::after,
+#discard-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid var(--gold-dim);
+}
+
+.action-btn {
+  background: rgba(201,168,76,0.06);
+  border: 1px solid var(--gold-dim);
+  border-radius: 7px;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 52px;
+}
+
+.action-btn:hover {
+  background: rgba(201,168,76,0.18);
+  border-color: var(--gold);
+}
+
+/* ── Miniatury karet v popupech ── */
+.mini-cards {
+  position: relative;
+  width: 36px;
+  height: 44px;
+}
+
+.mini-card {
+  position: absolute;
+  width: 26px;
+  height: 36px;
+  border-radius: 3px;
+  background: var(--cream);
+  border: 1px solid rgba(120,90,40,0.6);
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Score popup — přiložit: 3 karty na sobě */
+#action-add .mini-card:nth-child(1) { top: 8px; left: 8px; background: #ddd0b0; }
+#action-add .mini-card:nth-child(2) { top: 4px; left: 4px; background: #e8dcc0; }
+#action-add .mini-card:nth-child(3) { top: 0px; left: 0px; }
+
+/* Score popup — nový pár: 1 karta */
+#action-new .mini-cards.solo {
+  width: 26px;
+  height: 36px;
+}
+#action-new .mini-card { top: 0; left: 0; }
+
+/* Discard popup — složit pár: 2 karty */
+#discard-action-take .mini-card:nth-child(1) { top: 4px; left: 6px; background: #e8dcc0; }
+#discard-action-take .mini-card:nth-child(2) { top: 0px; left: 0px; }
+
+/* Discard popup — zahodit: křížek */
+.mini-cross {
+  font-size: 1.3rem;
+  color: var(--red);
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+
+/* ── Skip button — přes prázdný dobírací balíček ── */
+#draw-pile-wrapper {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+
+#draw-pile-wrapper #draw-pile {
+  width: 100%;
+  height: 100%;
+}
+
+#skip-btn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+#skip-btn.hidden { display: none; }
+
+#skip-game-btn {
+  font-size: 2rem;
+  background: rgba(10, 25, 16, 0.92);
+  border: 1px solid var(--gold-dim);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  line-height: 1;
+}
+
+#skip-game-btn:hover {
+  background: rgba(201,168,76,0.15);
+  border-color: var(--gold);
+  transform: scale(1.08);
 }
 
 /* ── Skupina karet na bodovacím balíčku ── */
@@ -179,24 +335,10 @@ body {
   transition: transform 0.3s ease;
 }
 
-/* Závazek */
 .score-group.commitment {
   filter: drop-shadow(0 0 8px rgba(201,168,76,0.6));
 }
 
-/*
- * Duhový okraj skupiny se žolíkem.
- *
- * Aplikuje se na poslední kartu ve skupině (:last-child)
- * přes ::after pseudo-element — ten sedí přesně přes kartu
- * a má border s gradientem po obvodu.
- *
- * border-radius zachován protože nepoužíváme border-image
- * ale background gradient na pseudo-elementu.
- *
- * Pouze na skupinách které jsou vrchní dvě (.has-joker
- * se přidává jen tehdy v renderScorePile()).
- */
 .score-group.has-joker .card:last-child {
   position: relative;
 }
@@ -207,19 +349,8 @@ body {
   inset: -2px;
   border-radius: 8px;
   padding: 2px;
-  background: linear-gradient(
-    135deg,
-    #ff6b6b,
-    #ffd93d,
-    #6bcb77,
-    #4d96ff,
-    #c77dff,
-    #ff6b6b
-  );
-  /* Trik: background je vidět jen jako okraj díky mask */
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -251,7 +382,6 @@ body {
   color: var(--muted);
 }
 
-/* Počítadla */
 .pile-count {
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
@@ -268,11 +398,7 @@ body {
   border-radius: 7px;
   border: 1px solid var(--gold-dim);
   background:
-    repeating-linear-gradient(
-      135deg,
-      #1e4030, #1e4030 4px,
-      #172e23 4px, #172e23 8px
-    );
+    repeating-linear-gradient(135deg, #1e4030, #1e4030 4px, #172e23 4px, #172e23 8px);
 }
 
 /* ── Odhazovací balíček ── */
@@ -299,8 +425,7 @@ body {
 
 #discard-pile-cards .card {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   pointer-events: none;
   cursor: default;
 }
@@ -338,11 +463,7 @@ body {
 
 .card.face-down {
   background:
-    repeating-linear-gradient(
-      135deg,
-      #1e4030, #1e4030 4px,
-      #172e23 4px, #172e23 8px
-    );
+    repeating-linear-gradient(135deg, #1e4030, #1e4030 4px, #172e23 4px, #172e23 8px);
   border-color: var(--gold-dim);
   box-shadow: -2px 2px 6px rgba(0,0,0,0.5);
 }
@@ -376,20 +497,193 @@ body {
 .card.red   { color: var(--red); }
 .card.joker { color: #6b3fa0; }
 
-/* ── Stavový log ── */
-#status-log {
+/* ── Status bar ── */
+#status-bar {
   flex-shrink: 0;
-  background: var(--felt);
+  position: relative;
+  width: 100%;
   border-top: 2px solid var(--gold-dim);
+}
+
+#status-log {
+  background: var(--felt);
   padding: 0.45rem 1rem;
   font-size: 0.82rem;
   color: var(--muted);
   font-style: italic;
   transition: color 0.3s;
-  width: 100%;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+#status-log:hover { color: var(--text); }
+#status-log.highlight { color: var(--gold); }
+
+#status-log-expanded {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--felt);
+  border-top: 1px solid var(--gold-dim);
+  border-bottom: 1px solid var(--felt-edge);
+  max-height: calc(5 * 2.2rem);
+  overflow-y: auto;
+  z-index: 50;
+  animation: log-expand 0.18s ease;
+}
+
+@keyframes log-expand {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: calc(5 * 2.2rem); }
+}
+
+#status-log-expanded.hidden { display: none; }
+
+#event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#event-list li {
+  padding: 0.38rem 1rem;
+  font-size: 0.78rem;
+  font-style: italic;
+  border-bottom: 1px solid rgba(201,168,76,0.07);
+  color: var(--muted);
   text-align: center;
 }
 
-#status-log.highlight { color: var(--gold); }
+/* Nejnovější = poslední v DOM = vizuálně dole */
+#event-list li:last-child       { color: var(--text); opacity: 1; }
+#event-list li:nth-last-child(2) { opacity: 0.75; }
+#event-list li:nth-last-child(3) { opacity: 0.55; }
+#event-list li:nth-last-child(4) { opacity: 0.38; }
+#event-list li:nth-last-child(5) { opacity: 0.25; }
+
+/* ── End game overlay ── */
+#end-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fade-in 0.25s ease;
+}
+
+#end-overlay.hidden { display: none; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+#end-panel {
+  background: var(--felt);
+  border: 1px solid var(--gold-dim);
+  border-radius: 12px;
+  padding: 1.6rem 2rem;
+  width: min(90vw, 340px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  animation: panel-in 0.25s ease;
+}
+
+@keyframes panel-in {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+#end-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.15em;
+  text-align: center;
+}
+
+#end-results {
+  width: 100%;
+}
+
+/* Řádek výsledku jednoho hráče */
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(201,168,76,0.1);
+  font-size: 0.9rem;
+}
+
+.result-row:last-child { border-bottom: none; }
+
+.result-name {
+  color: var(--text);
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.result-pts {
+  color: var(--gold);
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.result-winner .result-name::after {
+  content: ' 👑';
+}
+
+/* Oddělovač mezi hrami v sérii */
+.result-divider {
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.4rem 0 0.2rem;
+  font-family: 'Cinzel', serif;
+}
+
+/* Celkový součet */
+.result-total {
+  border-top: 1px solid var(--gold-dim) !important;
+  margin-top: 0.3rem;
+  padding-top: 0.5rem !important;
+}
+
+.result-total .result-name,
+.result-total .result-pts {
+  color: var(--gold);
+}
+
+#end-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.4rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 0.3rem;
+}
+
+#end-btn:hover {
+  background: #e0bc5a;
+}
 
 #debug-panel { display: none; }
