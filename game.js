@@ -1,6 +1,6 @@
 /**
  * ZLODĚJ – Card Game
- * game.js – Vlákno 10: Opravy — discard popup podmínka, event log pořadí, skip tlačítko podmínka+styl
+ * game.js – Vlákno 11: Nový layout, vějíře, score pile fixovaný
  */
 
 // ── 1. Lokalizace ──────────────────────────────────────────────────────────
@@ -9,9 +9,6 @@ const LANG = {
   en: {
     playerName:       "Player",
     aiName:           "Computer",
-    draw:             "Draw",
-    discard:          "Discard",
-    scorePile:        "Score",
     joker:            "Joker",
     yourTurn:         "Your turn — select a card",
     selectTarget:     "Now choose where to play it",
@@ -41,9 +38,6 @@ const LANG = {
   cs: {
     playerName:       "Hráč",
     aiName:           "Počítač",
-    draw:             "Dobírací",
-    discard:          "Odhoz",
-    scorePile:        "Body",
     joker:            "Žolík",
     yourTurn:         "Tvůj tah — vyber kartu",
     selectTarget:     "Vyber kam kartu zahraješ",
@@ -130,10 +124,9 @@ function shuffle(array) {
 
 let gameState    = null;
 let selectedCard = null;
-let pendingPopupAction  = null; // score pile popup
-let pendingDiscardPopup = null; // discard popup
+let pendingPopupAction  = null;
+let pendingDiscardPopup = null;
 
-// Serie — přetrvává mezi hrami
 let seriesState = null;
 
 
@@ -192,18 +185,10 @@ function dealCards() {
 
 // ── 7. Detekce stagnace, skip tlačítko, konec hry ─────────────────────────
 
-/**
- * updateSkipButton()
- *
- * Zobrazí/skryje tlačítko "End game" nad dobíracím balíčkem.
- * Podmínka: drawPile prázdný + celkem méně než STALEMATE_MAX_CARDS karet.
- * Stejná podmínka jako vstup do checkStalemate().
- */
 function updateSkipButton() {
   const skipBtn = document.getElementById("skip-btn");
   if (!skipBtn || !gameState) return;
 
-  // Celkový počet karet ve hře = odhaz + ruce všech hráčů (draw je prázdný)
   const cardsInHands = gameState.players.reduce((s, p) => s + p.hand.length, 0);
   const totalCards   = gameState.drawPile.length + gameState.discardPile.length + cardsInHands;
 
@@ -246,7 +231,6 @@ function endGame(reason) {
   setStatus(msg, true);
   updateSkipButton();
 
-  // Uložíme skóre do série
   if (seriesState) {
     const gameIndex = seriesState.gamesPlayed;
     gameState.players.forEach((p, i) => {
@@ -262,12 +246,6 @@ function endGame(reason) {
 
 // ── 8. Série a end overlay ─────────────────────────────────────────────────
 
-/**
- * initSeries(numPlayers)
- *
- * Inicializuje novou sérii. Série = numPlayers her.
- * scores[playerIndex][gameIndex] = skóre v dané hře.
- */
 function initSeries(numPlayers) {
   seriesState = {
     numPlayers,
@@ -278,18 +256,11 @@ function initSeries(numPlayers) {
   };
 }
 
-/**
- * showEndOverlay()
- *
- * Zobrazí overlay s výsledky.
- * Po 1. hře: výsledky hry + "Next game".
- * Po poslední hře: výsledky všech her + celkový součet + "New series".
- */
 function showEndOverlay() {
-  const overlay   = document.getElementById("end-overlay");
-  const title     = document.getElementById("end-title");
-  const results   = document.getElementById("end-results");
-  const btn       = document.getElementById("end-btn");
+  const overlay = document.getElementById("end-overlay");
+  const title   = document.getElementById("end-title");
+  const results = document.getElementById("end-results");
+  const btn     = document.getElementById("end-btn");
 
   const isSeriesEnd = seriesState.gamesPlayed >= seriesState.gamesInSeries;
 
@@ -298,16 +269,13 @@ function showEndOverlay() {
   results.innerHTML = "";
 
   if (!isSeriesEnd) {
-    // Výsledky aktuální hry
-    const gameIdx  = seriesState.gamesPlayed - 1;
     const gamePts  = gameState.players.map(p => p.totalScore);
     const maxScore = Math.max(...gamePts);
 
     gameState.players.forEach((p, i) => {
-      const row  = document.createElement("div");
+      const row = document.createElement("div");
       row.classList.add("result-row");
       if (gamePts[i] === maxScore) row.classList.add("result-winner");
-
       row.innerHTML = `
         <span class="result-name">${p.name}</span>
         <span class="result-pts">${gamePts[i]} pts</span>
@@ -315,7 +283,6 @@ function showEndOverlay() {
       results.appendChild(row);
     });
   } else {
-    // Výsledky všech her + součet
     for (let g = 0; g < seriesState.gamesPlayed; g++) {
       const label = document.createElement("div");
       label.classList.add("result-divider");
@@ -337,13 +304,12 @@ function showEndOverlay() {
       });
     }
 
-    // Celkový součet
     const totalLabel = document.createElement("div");
     totalLabel.classList.add("result-divider");
     totalLabel.textContent = T().total;
     results.appendChild(totalLabel);
 
-    const totals  = gameState.players.map((p, i) =>
+    const totals   = gameState.players.map((p, i) =>
       seriesState.scores[i].reduce((s, v) => s + v, 0)
     );
     const maxTotal = Math.max(...totals);
@@ -397,7 +363,7 @@ function startGame(numPlayers, firstPlayerIndex) {
     eventLog:           [],
   };
 
-  selectedCard       = null;
+  selectedCard        = null;
   pendingPopupAction  = null;
   pendingDiscardPopup = null;
 
@@ -435,14 +401,6 @@ function cardLabel(card) {
   return card.rank === "Joker" ? T().joker : `${card.rank}${card.suit}`;
 }
 
-/**
- * setStatus(text, highlight)
- *
- * Přidá zprávu do eventLog a zobrazí ji ve status řádku.
- * Do logu přidáváme na konec (nejnovější = poslední = vizuálně dole).
- * Ve status řádku zobrazujeme vždy aktuální zprávu — do logu ji
- * přidáme jen pokud se liší od poslední položky (žádný duplikát).
- */
 function setStatus(text, highlight = false) {
   if (gameState) {
     const log = gameState.eventLog;
@@ -472,23 +430,14 @@ function calcScore(player) {
 
 // ── 11. Event log ──────────────────────────────────────────────────────────
 
-/**
- * renderEventLog()
- *
- * Vykreslí log — nejstarší nahoře, nejnovější dole.
- * CSS flex-direction: column-reverse + overflow-y zajistí scroll dolu.
- */
 function renderEventLog() {
   const list = document.getElementById("event-list");
   if (!list || !gameState) return;
 
   list.innerHTML = "";
 
-  // Zobrazíme celý log BEZ poslední (nejnovější) zprávy —
-  // tu vidí hráč permanentně ve status řádku dole.
-  // Pořadí: nejstarší nahoře → nejnovější dole (flex-direction: column).
-  const log = gameState.eventLog;
-  const toShow = log.slice(0, -1); // vše kromě posledního záznamu
+  const log    = gameState.eventLog;
+  const toShow = log.slice(0, -1);
 
   toShow.forEach(msg => {
     const li = document.createElement("li");
@@ -496,7 +445,6 @@ function renderEventLog() {
     list.appendChild(li);
   });
 
-  // Scrollneme na konec — nejnovější viditelná dole
   const expanded = document.getElementById("status-log-expanded");
   if (expanded && !expanded.classList.contains("hidden")) {
     expanded.scrollTop = expanded.scrollHeight;
@@ -562,7 +510,7 @@ function splitIntoGroups(cards) {
 }
 
 
-// ── 13. Akce: krádež z bodovacího balíčku ────────────────────────────────
+// ── 13. Akce: krádež ─────────────────────────────────────────────────────
 
 function stealFromScorePile(thiefIndex, cardId, victimIndex) {
   const thief  = gameState.players[thiefIndex];
@@ -572,8 +520,8 @@ function stealFromScorePile(thiefIndex, cardId, victimIndex) {
     setStatus(T().commitBlocked(thief.scorePile[thief.scorePile.length - 1][0].rank));
     return false;
   }
-  if (victim.scorePile.length === 0) { setStatus(T().cantStealEmpty);  return false; }
-  if (victim.inCommitment)           { setStatus(T().cantSteal);       return false; }
+  if (victim.scorePile.length === 0) { setStatus(T().cantStealEmpty); return false; }
+  if (victim.inCommitment)           { setStatus(T().cantSteal);      return false; }
 
   const found = findCardInHand(thiefIndex, cardId);
   if (!found) return false;
@@ -581,8 +529,8 @@ function stealFromScorePile(thiefIndex, cardId, victimIndex) {
   const { card: thiefCard, index: thiefIdx2 } = found;
   const stolenGroup = victim.scorePile[victim.scorePile.length - 1];
 
-  const thiefIsJoker  = thiefCard.rank === "Joker";
-  const stolenRank    = stolenGroup.find(c => c.rank !== "Joker")?.rank;
+  const thiefIsJoker = thiefCard.rank === "Joker";
+  const stolenRank   = stolenGroup.find(c => c.rank !== "Joker")?.rank;
 
   if (!thiefIsJoker && thiefCard.rank !== stolenRank) { setStatus(T().cantStealRank); return false; }
   if (thiefIsJoker && stolenGroup.every(c => c.rank === "Joker")) { setStatus(T().cantStealRank); return false; }
@@ -609,7 +557,7 @@ function stealFromScorePile(thiefIndex, cardId, victimIndex) {
 }
 
 
-// ── 14. Akce: odhoz karty ─────────────────────────────────────────────────
+// ── 14. Akce: odhoz ─────────────────────────────────────────────────────
 
 function discardCard(playerIndex, cardId) {
   const player = gameState.players[playerIndex];
@@ -631,7 +579,7 @@ function discardCard(playerIndex, cardId) {
 }
 
 
-// ── 15. Akce: vzít z odhazovacího balíčku ────────────────────────────────
+// ── 15. Akce: vzít z odhazu ──────────────────────────────────────────────
 
 function takeFromDiscard(playerIndex, cardId) {
   const player = gameState.players[playerIndex];
@@ -648,9 +596,9 @@ function takeFromDiscard(playerIndex, cardId) {
 
   if (gameState.discardPile.length === 0) return false;
 
-  const topCard    = gameState.discardPile[gameState.discardPile.length - 1];
-  const handJoker  = card.rank === "Joker";
-  const topJoker   = topCard.rank === "Joker";
+  const topCard   = gameState.discardPile[gameState.discardPile.length - 1];
+  const handJoker = card.rank === "Joker";
+  const topJoker  = topCard.rank === "Joker";
 
   const group = handJoker ? [card, topCard]
               : topJoker  ? [topCard, card]
@@ -666,7 +614,7 @@ function takeFromDiscard(playerIndex, cardId) {
 }
 
 
-// ── 16. Akce: vyložení na bodovací balíček ────────────────────────────────
+// ── 16. Akce: vyložení na score pile ─────────────────────────────────────
 
 function playToScorePile(playerIndex, cardId, forceNew = false) {
   const player = gameState.players[playerIndex];
@@ -675,7 +623,6 @@ function playToScorePile(playerIndex, cardId, forceNew = false) {
 
   const { card, index } = found;
 
-  // Dokončení závazku
   if (player.inCommitment) {
     const lastGroup  = player.scorePile[player.scorePile.length - 1];
     const neededRank = lastGroup[0].rank;
@@ -689,7 +636,6 @@ function playToScorePile(playerIndex, cardId, forceNew = false) {
     return true;
   }
 
-  // Přiložení ke stávající skupině (pokud forceNew = false)
   if (!forceNew && card.rank !== "Joker" && player.scorePile.length > 0) {
     const topGroup     = player.scorePile[player.scorePile.length - 1];
     const topGroupRank = topGroup.find(c => c.rank !== "Joker")?.rank;
@@ -709,7 +655,6 @@ function playToScorePile(playerIndex, cardId, forceNew = false) {
     }
   }
 
-  // Nový závazek
   const hasPair = player.hand.some((c, i) => i !== index && c.rank === card.rank);
   if (!hasPair) { setStatus(T().noPair(cardLabel(card))); return false; }
 
@@ -817,14 +762,6 @@ function initPopupButtons() {
 
 // ── 19. Discard popup ──────────────────────────────────────────────────────
 
-/**
- * shouldShowDiscardPopup(playerIndex, cardId)
- *
- * Zobrazí se když:
- *   A) karta sedí na vrchní kartu odhazovacího balíčku (rankMatch nebo jokerMatch)
- *   B) hráč má v ruce ještě jednu kartu stejného ranku (takže by mohl složit pár
- *      NEBO záměrně zahodit tuto kartu a nechat si druhou)
- */
 function shouldShowDiscardPopup(playerIndex, cardId) {
   const player = gameState.players[playerIndex];
   if (player.inCommitment) return false;
@@ -833,14 +770,13 @@ function shouldShowDiscardPopup(playerIndex, cardId) {
   const found = findCardInHand(playerIndex, cardId);
   if (!found) return false;
 
-  const { card } = found;
+  const { card }   = found;
   const topCard    = gameState.discardPile[gameState.discardPile.length - 1];
   const handJoker  = card.rank === "Joker";
   const topJoker   = topCard.rank === "Joker";
   const rankMatch  = card.rank === topCard.rank;
   const jokerMatch = (handJoker && !topJoker) || (!handJoker && topJoker);
 
-  // Popup vždy když karta sedí — hráč si zvolí sám zda složí pár nebo zahodí
   return rankMatch || jokerMatch;
 }
 
@@ -848,8 +784,6 @@ function showDiscardPopup(playerIndex, cardId) {
   pendingDiscardPopup = { playerIndex, cardId };
   const popup = document.getElementById("discard-popup");
   popup.classList.remove("hidden");
-  // Vycentrujeme popup nad discard pile
-  popup.style.transform = "translateX(-50%)";
 }
 
 function hideDiscardPopup() {
@@ -875,11 +809,6 @@ function initDiscardPopupButtons() {
   });
 }
 
-/**
- * positionDiscardPopup()
- *
- * Pozicuje #discard-popup nad #discard-pile v rámci #table.
- */
 function positionDiscardPopup() {
   const popup   = document.getElementById("discard-popup");
   const pile    = document.getElementById("discard-pile");
@@ -889,9 +818,9 @@ function positionDiscardPopup() {
   const pileRect  = pile.getBoundingClientRect();
   const tableRect = table.getBoundingClientRect();
 
-  const popupW = 140; // přibližná šířka popupu
+  const popupW = 140;
   const left   = pileRect.left - tableRect.left + pileRect.width / 2 - popupW / 2;
-  const top    = pileRect.top  - tableRect.top  - 80; // nad pile
+  const top    = pileRect.top  - tableRect.top  - 80;
 
   popup.style.left = left + "px";
   popup.style.top  = top  + "px";
@@ -906,7 +835,7 @@ function aiGetPairs(hand) {
   const seen  = {};
   for (const card of hand) {
     const rank = card.rank;
-    if (seen[rank])           { pairs.push({ card1: seen[rank], card2: card }); seen[rank] = null; }
+    if (seen[rank])                    { pairs.push({ card1: seen[rank], card2: card }); seen[rank] = null; }
     else if (seen[rank] === undefined) { seen[rank] = card; }
   }
   return pairs;
@@ -935,12 +864,6 @@ function aiCalcGroupValue(group) {
   return group.reduce((s, c) => s + c.value, 0);
 }
 
-/**
- * aiGetAddToGroupOptions(ai)
- *
- * Nová možnost: přiložit kartu ke stávající vrchní skupině vlastního balíčku.
- * Gain = hodnota karty (karta se "bezpečně" uloží místo odhození).
- */
 function aiGetAddToGroupOptions(ai) {
   if (ai.inCommitment) return [];
   if (ai.scorePile.length === 0) return [];
@@ -957,30 +880,25 @@ function aiGetAddToGroupOptions(ai) {
 function aiGetAllMoves(ai, victim) {
   const moves = [];
 
-  // Závazek
   for (const { card1 } of aiGetPairs(ai.hand)) {
     if (card1.rank === "Joker") continue;
     moves.push({ action: "commit", cardId: card1.id, gain: card1.value * 2 });
   }
 
-  // Dobírání z odhazu
   const topDiscard = gameState.discardPile.length > 0
     ? gameState.discardPile[gameState.discardPile.length - 1] : null;
   for (const card of aiGetDiscardMatches(ai.hand)) {
     moves.push({ action: "takeDiscard", cardId: card.id, gain: card.value + topDiscard.value });
   }
 
-  // Krádež
   const topGroup = victim.scorePile.length > 0
     ? victim.scorePile[victim.scorePile.length - 1] : null;
   for (const card of aiGetStealOptions(ai.hand, victim)) {
     moves.push({ action: "steal", cardId: card.id, gain: topGroup ? aiCalcGroupValue(topGroup) - card.value : 0 });
   }
 
-  // Přiložení ke skupině (nové)
   moves.push(...aiGetAddToGroupOptions(ai));
 
-  // Odhoz
   for (const card of ai.hand) {
     moves.push({ action: "discard", cardId: card.id, gain: -card.value });
   }
@@ -998,10 +916,10 @@ function aiDecideGodlike(ai, victim) {
 
   const allMoves = aiGetAllMoves(ai, victim);
 
-  const steals      = allMoves.filter(m => m.action === "steal"      && m.gain > 0);
-  const commits     = allMoves.filter(m => m.action === "commit"     && m.gain > 0);
-  const discards    = allMoves.filter(m => m.action === "takeDiscard"&& m.gain > 0);
-  const addToGroups = allMoves.filter(m => m.action === "addToGroup" && m.gain > 0);
+  const steals      = allMoves.filter(m => m.action === "steal"       && m.gain > 0);
+  const commits     = allMoves.filter(m => m.action === "commit"      && m.gain > 0);
+  const discards    = allMoves.filter(m => m.action === "takeDiscard" && m.gain > 0);
+  const addToGroups = allMoves.filter(m => m.action === "addToGroup"  && m.gain > 0);
   const dumps       = allMoves.filter(m => m.action === "discard");
 
   const best = (arr) => arr.length > 0 ? arr.reduce((a, b) => a.gain >= b.gain ? a : b) : null;
@@ -1011,15 +929,13 @@ function aiDecideGodlike(ai, victim) {
   const bestDiscard  = best(discards);
   const bestAddGroup = best(addToGroups);
 
-  // Nejlepší "bezpečný" tah (závazek, dobírání, přiložení)
-  const positives = [bestCommit, bestDiscard, bestAddGroup].filter(Boolean);
+  const positives    = [bestCommit, bestDiscard, bestAddGroup].filter(Boolean);
   const bestPositive = positives.length > 0 ? positives.reduce((a, b) => a.gain >= b.gain ? a : b) : null;
 
   if (bestSteal && bestPositive) return bestSteal.gain >= bestPositive.gain ? bestSteal : bestPositive;
   if (bestSteal)    return bestSteal;
   if (bestPositive) return bestPositive;
 
-  // Odhodíme nejméně hodnotnou kartu
   return dumps.length > 0 ? dumps.reduce((a, b) => a.gain > b.gain ? a : b)
                           : { action: "discard", cardId: ai.hand[0].id };
 }
@@ -1032,10 +948,10 @@ function aiDecide(ai, victim) {
     if (matchCard) return { action: "commit-finish", cardId: matchCard.id };
   }
 
-  const allMoves    = aiGetAllMoves(ai, victim);
-  const validMoves  = CONFIG.AI_LEVEL === 1 ? allMoves.filter(m => m.action !== "steal") : allMoves;
-  const filtered    = (CONFIG.AI_LEVEL === 2 && Math.random() > CONFIG.AI_OPTIMAL_CHANCE)
-                    ? validMoves.filter(m => m.action !== "steal") : validMoves;
+  const allMoves   = aiGetAllMoves(ai, victim);
+  const validMoves = CONFIG.AI_LEVEL === 1 ? allMoves.filter(m => m.action !== "steal") : allMoves;
+  const filtered   = (CONFIG.AI_LEVEL === 2 && Math.random() > CONFIG.AI_OPTIMAL_CHANCE)
+                   ? validMoves.filter(m => m.action !== "steal") : validMoves;
 
   const maxGain = Math.max(...filtered.map(m => m.gain));
   const best    = filtered.filter(m => m.gain === maxGain);
@@ -1164,65 +1080,132 @@ function createCardElement(card, faceUp, isSelected = false) {
   return el;
 }
 
+/**
+ * renderHand — karty se vykreslují přímo jako absolutní pozice v #table
+ *
+ * Hráč:   střed kružnice = pravý dolní roh tabulky
+ *         karty vycházejí nahoru a doleva
+ *         face-up, klikatelné
+ *
+ * Soupeř: střed kružnice = levý horní roh tabulky
+ *         karty vycházejí dolů a doprava, otočené 180°
+ *         face-down, neklikatelné
+ */
 function renderHand(player, containerId, clickable = false, fanDown = false) {
   const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = "";
 
   const cards = player.hand;
-  if (cards.length === 0) return;
+  if (cards.length === 0) { container.style.width = "0"; container.style.height = "0"; return; }
 
-  const CARD_W = 125, CARD_H = 180, SPREAD = 5, RADIUS = 600, STEP = CARD_W * 0.18;
-  const totalAngle = SPREAD * (cards.length - 1);
+  const CARD_W = 138;
+  const CARD_H = 198;
+  const SPREAD = fanDown ? 3  : 3;
+  const STEP   = fanDown ? 14 : 14;
+  const RADIUS = 500;
+
+  const n          = cards.length;
+  const totalAngle = SPREAD * (n - 1);
   const startAngle = -totalAngle / 2;
-  const containerW = CARD_W + (cards.length - 1) * STEP + 10;
-  const containerH = CARD_H + 30;
 
-  container.style.width    = containerW + "px";
-  container.style.height   = containerH + "px";
-  container.style.position = "relative";
+  const W = CARD_W + (n - 1) * STEP + 20;
+  const H = CARD_H + 30;
 
-  const cx = containerW / 2;
-  const cy = fanDown ? -RADIUS : containerH + RADIUS;
+  container.style.width  = W + "px";
+  container.style.height = H + "px";
 
-  cards.forEach((card, i) => {
-    const isSelected = selectedCard?.playerIndex === player.index && selectedCard?.cardId === card.id;
-    const el         = createCardElement(card, clickable, isSelected);
-    const angleDeg   = startAngle + i * SPREAD;
-    const angleRad   = angleDeg * Math.PI / 180;
+  if (fanDown) {
+    // ── SOUPEŘ ──
+    // Stejná logika jako hráč, ale celý kontejner otočen o 180° kolem svého středu
+    // a posunut nahoru aby byl z půlky skrytý
+    const SPREAD_OPP = 3;
+    const STEP_OPP   = 14;
+    const RADIUS_OPP = 500;
+    const n2         = cards.length;
+    const totalAngle2 = SPREAD_OPP * (n2 - 1);
+    const startAngle2 = -totalAngle2 / 2;
 
-    let left, top, origin, transform;
+    const W2 = CARD_W + (n2 - 1) * STEP_OPP + 20;
+    const H2 = CARD_H + 30;
 
-    if (fanDown) {
-      left      = cx + RADIUS * Math.sin(angleRad) - CARD_W / 2;
-      top       = cy + RADIUS * Math.cos(angleRad);
-      origin    = `${CARD_W / 2}px 0px`;
-      transform = `rotate(${-angleDeg}deg)`;
-    } else {
-      left      = cx + RADIUS * Math.sin(angleRad) - CARD_W / 2;
-      top       = cy - RADIUS * Math.cos(angleRad) - CARD_H;
-      origin    = `${CARD_W / 2}px ${CARD_H}px`;
-      transform = `rotate(${angleDeg}deg)`;
-    }
+    container.style.width     = W2 + "px";
+    container.style.height    = H2 + "px";
+    // Otočení celého kontejneru o 180° + posun nahoru o půl výšky karty
+    container.style.transform = `rotate(180deg) translateY(${CARD_H + 100}px)`;
+    container.style.transformOrigin = "50% 100%";
 
-    el.style.cssText = `position:absolute;left:${left}px;top:${top}px;z-index:${i+1};transform-origin:${origin};transform:${transform};`;
+    const cy2 = H2 + RADIUS_OPP;
+    const endAngleRad2 = ((startAngle2 + (n2-1) * SPREAD_OPP) * Math.PI) / 180;
+    const cx2 = W2 - CARD_W / 2 - RADIUS_OPP * Math.sin(endAngleRad2);
 
-    if (isSelected) {
-      el.style.transform = `translateY(-22px) rotate(${angleDeg}deg)`;
-      el.style.zIndex    = "99";
-    }
+    cards.forEach((card, i) => {
+      const el       = createCardElement(card, false, false);
+      const angleDeg = startAngle2 + i * SPREAD_OPP;
+      const angleRad = angleDeg * Math.PI / 180;
 
-    if (clickable && !isSelected) {
-      el.addEventListener("mouseenter", () => { el.style.transform = `translateY(-16px) rotate(${angleDeg}deg)`; el.style.zIndex = "99"; });
-      el.addEventListener("mouseleave", () => { el.style.transform = transform; el.style.zIndex = String(i + 1); });
-    }
+      const left = cx2 + RADIUS_OPP * Math.sin(angleRad) - CARD_W / 2;
+      const top  = cy2 - RADIUS_OPP * Math.cos(angleRad) - CARD_H;
 
-    if (clickable) {
-      el.addEventListener("click", (e) => { e.stopPropagation(); onCardClick(player.index, card.id); });
-    }
+      el.style.position        = "absolute";
+      el.style.left            = left + "px";
+      el.style.top             = top  + "px";
+      el.style.zIndex          = String(i + 1);
+      el.style.transformOrigin = `${CARD_W / 2}px ${CARD_H}px`;
+      el.style.transform       = `rotate(${angleDeg}deg)`;
 
-    container.appendChild(el);
-  });
+      container.appendChild(el);
+    });
+
+  } else {
+    // ── HRÁČ ──
+    // Střed kružnice POD kontejnerem
+    const cy = H + RADIUS;
+    // Kotví vpravo: pravá karta (i=n-1) na pravém okraji
+    const endAngleRad = ((startAngle + (n-1) * SPREAD) * Math.PI) / 180;
+    const cx = W - CARD_W / 2 - RADIUS * Math.sin(endAngleRad);
+
+    cards.forEach((card, i) => {
+      const isSelected = selectedCard?.playerIndex === player.index
+                      && selectedCard?.cardId === card.id;
+
+      const el       = createCardElement(card, true, isSelected);
+      const angleDeg = startAngle + i * SPREAD;
+      const angleRad = angleDeg * Math.PI / 180;
+
+      const left = cx + RADIUS * Math.sin(angleRad) - CARD_W / 2;
+      const top  = cy - RADIUS * Math.cos(angleRad) - CARD_H;
+
+      el.style.position        = "absolute";
+      el.style.left            = left + "px";
+      el.style.top             = top  + "px";
+      el.style.zIndex          = String(i + 1);
+      el.style.transformOrigin = `${CARD_W / 2}px ${CARD_H}px`;
+
+      if (isSelected) {
+        el.style.transform = `translateY(-24px) scale(1.05) rotate(${angleDeg}deg)`;
+        el.style.zIndex    = "50";
+      } else {
+        el.style.transform = `rotate(${angleDeg}deg)`;
+        const base = `rotate(${angleDeg}deg)`;
+        el.addEventListener("mouseenter", () => {
+          el.style.transform  = `translateY(-16px) scale(1.08) ${base}`;
+          el.style.transition = "transform 0.12s ease";
+        });
+        el.addEventListener("mouseleave", () => {
+          el.style.transform  = base;
+          el.style.transition = "transform 0.12s ease";
+        });
+      }
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onCardClick(player.index, card.id);
+      });
+
+      container.appendChild(el);
+    });
+  }
 }
 
 function renderDiscardPile() {
@@ -1281,19 +1264,11 @@ function renderScorePile(player, slotId, countId, scoreId) {
   document.getElementById(scoreId).textContent = calcScore(player);
 }
 
-function renderTurnIndicator() {
-  const el = document.getElementById("turn-indicator");
-  if (el) el.textContent = currentPlayer().isHuman ? T().yourTurn : T().aiThinking;
-}
-
 function renderAll() {
   const human    = gameState.players[0];
   const opponent = gameState.players[1];
 
-  document.getElementById("label-player").textContent   = human.name;
-  document.getElementById("label-opponent").textContent = opponent.name;
-
-  renderHand(human,    "hand-player",   true);
+  renderHand(human,    "hand-player",   true,  false);
   renderHand(opponent, "hand-opponent", false, true);
 
   renderScorePile(human,    "score-pile-player",   "score-count-player",   "score-player");
@@ -1301,8 +1276,8 @@ function renderAll() {
 
   renderDiscardPile();
   renderDrawPile();
-  renderTurnIndicator();
 
+  // Zvýraznění cílů při výběru karty
   document.getElementById("discard-pile")
     .classList.toggle("target-highlight", selectedCard !== null);
   document.getElementById("score-pile-player")
@@ -1310,7 +1285,9 @@ function renderAll() {
 
   const opp = gameState.players[1];
   document.getElementById("score-pile-opponent")
-    .classList.toggle("target-highlight", selectedCard !== null && !opp.inCommitment && opp.scorePile.length > 0);
+    .classList.toggle("target-highlight",
+      selectedCard !== null && !opp.inCommitment && opp.scorePile.length > 0
+    );
 }
 
 

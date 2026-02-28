@@ -7,100 +7,60 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <div id="header-bar">
-    <h1>ZLODĚJ</h1>
-    <div id="turn-indicator">—</div>
-  </div>
-
   <div id="table">
 
-    <div class="player-zone" id="zone-opponent">
-      <div class="player-label" id="label-opponent">Computer</div>
-      <div class="hand" id="hand-opponent"></div>
-      <div class="score-pile-area">
-        <div class="pile-label">Score</div>
-        <div class="score-pile-slot" id="score-pile-opponent">
-          <span class="empty-label">empty</span>
-        </div>
+    <div id="zone-opponent">
+      <div id="hand-opponent-wrap">
+        <div id="hand-opponent"></div>
+      </div>
+      <div id="score-area-opponent" class="score-pile-area">
+        <div class="score-pile-slot" id="score-pile-opponent"><span class="empty-label">empty</span></div>
         <div class="score-pile-count" id="score-count-opponent"></div>
         <div class="score-value"><span id="score-opponent">0</span> pts</div>
       </div>
     </div>
 
-    <div id="middle-row">
+    <div id="zone-middle">
       <div class="pile-slot">
-        <div class="pile-label">Draw</div>
         <div id="draw-pile-wrapper">
           <div id="draw-pile"></div>
-          <!-- Skip tlačítko — zobrazí se přes prázdný dobírací balíček -->
-          <div id="skip-btn" class="hidden">
-            <button id="skip-game-btn">🚪</button>
-          </div>
+          <div id="skip-btn" class="hidden"><button id="skip-game-btn">🚪</button></div>
         </div>
         <div class="pile-count" id="draw-count">—</div>
       </div>
       <div class="pile-slot">
-        <div class="pile-label">Discard</div>
-        <div id="discard-pile">
-          <div id="discard-pile-cards"></div>
-        </div>
+        <div id="discard-pile"><div id="discard-pile-cards"></div></div>
         <div class="pile-count" id="discard-count">0</div>
       </div>
     </div>
 
-    <div class="player-zone" id="zone-player">
-      <div class="score-pile-area">
-        <div class="pile-label">Score</div>
-        <!-- Action popup pro score pile — přiložit vs. nový pár -->
+    <div id="zone-player">
+      <div id="score-area-player" class="score-pile-area">
         <div id="action-popup" class="hidden">
-          <button id="action-add" class="action-btn" title="Add to existing group">
-            <div class="mini-cards">
-              <div class="mini-card"></div>
-              <div class="mini-card"></div>
-              <div class="mini-card"></div>
-            </div>
-          </button>
-          <button id="action-new" class="action-btn" title="Start new pair">
-            <div class="mini-cards solo">
-              <div class="mini-card"></div>
-            </div>
-          </button>
+          <button id="action-add" class="action-btn"><div class="mini-cards"><div class="mini-card"></div><div class="mini-card"></div><div class="mini-card"></div></div></button>
+          <button id="action-new" class="action-btn"><div class="mini-cards solo"><div class="mini-card"></div></div></button>
         </div>
-        <div class="score-pile-slot" id="score-pile-player">
-          <span class="empty-label">empty</span>
-        </div>
+        <div class="score-pile-slot" id="score-pile-player"><span class="empty-label">empty</span></div>
         <div class="score-pile-count" id="score-count-player"></div>
         <div class="score-value"><span id="score-player">0</span> pts</div>
       </div>
-      <div class="hand" id="hand-player"></div>
-      <div class="player-label" id="label-player">Player</div>
+      <div id="hand-player-wrap">
+        <div id="hand-player"></div>
+      </div>
     </div>
 
-    <!-- Action popup pro discard — složit pár vs. zahodit -->
     <div id="discard-popup" class="hidden">
-      <button id="discard-action-take" class="action-btn" title="Take pair from discard">
-        <div class="mini-cards">
-          <div class="mini-card"></div>
-          <div class="mini-card"></div>
-        </div>
-      </button>
-      <button id="discard-action-discard" class="action-btn" title="Just discard">
-        <div class="mini-cross">✕</div>
-      </button>
+      <button id="discard-action-take" class="action-btn"><div class="mini-cards"><div class="mini-card"></div><div class="mini-card"></div></div></button>
+      <button id="discard-action-discard" class="action-btn"><div class="mini-cross">✕</div></button>
     </div>
 
   </div>
 
-  <!-- Status log -->
   <div id="status-bar">
-    <div id="status-log-expanded" class="hidden">
-      <ul id="event-list"></ul>
-    </div>
+    <div id="status-log-expanded" class="hidden"><ul id="event-list"></ul></div>
     <div id="status-log">Waiting…</div>
   </div>
 
-  <!-- End game overlay -->
   <div id="end-overlay" class="hidden">
     <div id="end-panel">
       <h2 id="end-title">Game Over</h2>
@@ -110,7 +70,6 @@
   </div>
 
   <div id="debug-panel"><div id="debug-output"></div></div>
-
   <script src="game.js"></script>
 </body>
 </html>

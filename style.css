@@ -2,23 +2,24 @@
 
 /* ── CSS proměnné ── */
 :root {
-  --bg:        #0d1b12;
-  --felt:      #1a3326;
-  --felt-edge: #0f2318;
-  --gold:      #c9a84c;
-  --gold-dim:  #7a6030;
-  --cream:     #f2e8d0;
-  --red:       #9b2335;
-  --text:      #e8dfc8;
-  --muted:     #6b7c6e;
-  --radius:    8px;
-  --card-w:    125px;
-  --card-h:    180px;
+  --bg:           #0d1b12;
+  --felt:         #1a3326;
+  --felt-edge:    #0f2318;
+  --gold:         #c9a84c;
+  --gold-dim:     #7a6030;
+  --cream:        #f2e8d0;
+  --red:          #9b2335;
+  --text:         #e8dfc8;
+  --muted:        #6b7c6e;
+  --radius:       8px;
+  --card-w:       138px;
+  --card-h:       198px;
+  --status-h:     40px;
 }
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
+html, body { height: 100%; overflow: hidden; }
 
 /* ── Body ── */
 body {
@@ -30,98 +31,106 @@ body {
     );
   color: var(--text);
   font-family: 'IM Fell English', serif;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
-/* ── Header ── */
-#header-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.4rem 1rem;
-  border-bottom: 1px solid var(--felt-edge);
-  flex-shrink: 0;
-}
-
-#header-bar h1 {
-  font-family: 'Cinzel', serif;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.18em;
-  text-shadow: 0 0 30px rgba(201,168,76,0.25);
-}
-
-#turn-indicator {
-  font-family: 'Cinzel', serif;
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  color: var(--gold);
-  background: rgba(201,168,76,0.08);
-  border: 1px solid var(--gold-dim);
-  border-radius: 99px;
-  padding: 0.25rem 0.9rem;
-  text-transform: uppercase;
-}
-
-/* ── Table ── */
+/* ── Herní plocha ── */
 #table {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.5rem 1rem;
   min-height: 0;
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
 }
 
-/* ── Player zones ── */
-.player-zone {
+/* ════════════════════════════════════════
+   TŘI ZÓNY
+════════════════════════════════════════ */
+
+#zone-opponent {
+  flex-shrink: 0;
+  height: 70px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0 0.6rem;
+  overflow: visible;
+}
+
+#hand-opponent-wrap {
   flex: 1;
-  width: 100%;
+  position: relative;
+  overflow: visible;
+  height: 70px;
+}
+
+#hand-opponent {
+  position: absolute;
+  top: 0; left: 0;
+  overflow: visible;
+}
+
+#score-area-opponent {
+  flex-shrink: 0;
+}
+
+#zone-middle {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.8rem;
+  gap: 2rem;
   min-height: 0;
-  overflow: visible;
 }
 
-#zone-opponent { align-items: flex-start; }
-#zone-player   { align-items: flex-end; }
-
-.player-label {
-  font-family: 'Cinzel', serif;
-  font-size: 0.6rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted);
-  writing-mode: vertical-rl;
+#zone-player {
   flex-shrink: 0;
-}
-
-/* ── Ruka hráče ── */
-.hand {
+  height: 70px;
   position: relative;
-  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 0.6rem;
   overflow: visible;
-  z-index: 10;
 }
 
-/* ── Bodovací balíček area ── */
+#score-area-player {
+  flex-shrink: 0;
+}
+
+#hand-player-wrap {
+  flex: 1;
+  position: relative;
+  overflow: visible;
+  height: 70px;
+}
+
+#hand-player {
+  position: absolute;
+  bottom: 0; right: 0;
+  overflow: visible;
+}
+
+/* ════════════════════════════════════════
+   SCORE PILE
+════════════════════════════════════════ */
+
 .score-pile-area {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  flex-shrink: 0;
+  gap: 0.2rem;
   position: relative;
+  /* Padding shora/zdola aby se popup vešel */
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
 }
 
 .score-pile-slot {
@@ -133,7 +142,7 @@ body {
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
   overflow: visible;
-  z-index: 1;
+  flex-shrink: 0;
 }
 
 .score-pile-slot:hover,
@@ -148,7 +157,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   color: rgba(201,168,76,0.18);
   font-style: italic;
   pointer-events: none;
@@ -156,7 +165,7 @@ body {
 
 .score-pile-count {
   font-family: 'Cinzel', serif;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
   color: var(--gold-dim);
   text-align: center;
@@ -165,125 +174,37 @@ body {
 
 .score-value {
   font-family: 'Cinzel', serif;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--gold);
   text-align: center;
 }
 
-/* ── Action popup (score pile) ── */
-#action-popup {
-  position: absolute;
-  bottom: calc(var(--card-h) + 2.2rem);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 0.5rem;
-  background: rgba(10, 25, 16, 0.97);
-  border: 1px solid var(--gold-dim);
-  border-radius: 10px;
-  padding: 0.5rem 0.6rem;
-  z-index: 200;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-  animation: popup-in 0.15s ease;
-}
-
-/* ── Discard popup — pozicovaný absolutně v #table ── */
-#discard-popup {
-  position: absolute;
-  /* JS nastaví top/left dynamicky podle pozice discard pile */
-  display: flex;
-  gap: 0.5rem;
-  background: rgba(10, 25, 16, 0.97);
-  border: 1px solid var(--gold-dim);
-  border-radius: 10px;
-  padding: 0.5rem 0.6rem;
-  z-index: 200;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-  animation: popup-in 0.15s ease;
-}
-
-#discard-popup.hidden { display: none; }
-
-@keyframes popup-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-#action-popup.hidden { display: none; }
-
-#action-popup::after,
-#discard-popup::after {
-  content: '';
-  position: absolute;
-  bottom: -7px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 7px solid var(--gold-dim);
-}
-
-.action-btn {
-  background: rgba(201,168,76,0.06);
-  border: 1px solid var(--gold-dim);
-  border-radius: 7px;
-  padding: 0.5rem 0.7rem;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 48px;
-  min-height: 52px;
-}
-
-.action-btn:hover {
-  background: rgba(201,168,76,0.18);
-  border-color: var(--gold);
-}
-
-/* ── Miniatury karet v popupech ── */
-.mini-cards {
+/* Ruka — relativní kontejner, karty absolutně uvnitř */
+.hand {
   position: relative;
-  width: 36px;
-  height: 44px;
+  overflow: visible;
 }
 
-.mini-card {
-  position: absolute;
-  width: 26px;
-  height: 36px;
-  border-radius: 3px;
-  background: var(--cream);
-  border: 1px solid rgba(120,90,40,0.6);
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+/* ════════════════════════════════════════
+   BALÍČKY — střední blok
+════════════════════════════════════════ */
+
+.pile-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-/* Score popup — přiložit: 3 karty na sobě */
-#action-add .mini-card:nth-child(1) { top: 8px; left: 8px; background: #ddd0b0; }
-#action-add .mini-card:nth-child(2) { top: 4px; left: 4px; background: #e8dcc0; }
-#action-add .mini-card:nth-child(3) { top: 0px; left: 0px; }
-
-/* Score popup — nový pár: 1 karta */
-#action-new .mini-cards.solo {
-  width: 26px;
-  height: 36px;
-}
-#action-new .mini-card { top: 0; left: 0; }
-
-/* Discard popup — složit pár: 2 karty */
-#discard-action-take .mini-card:nth-child(1) { top: 4px; left: 6px; background: #e8dcc0; }
-#discard-action-take .mini-card:nth-child(2) { top: 0px; left: 0px; }
-
-/* Discard popup — zahodit: křížek */
-.mini-cross {
-  font-size: 1.3rem;
-  color: var(--red);
-  line-height: 1;
-  padding: 0 0.1rem;
+.pile-count {
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold-dim);
+  text-align: center;
+  min-width: 2ch;
 }
 
-/* ── Skip button — přes prázdný dobírací balíček ── */
 #draw-pile-wrapper {
   position: relative;
   width: var(--card-w);
@@ -295,103 +216,6 @@ body {
   height: 100%;
 }
 
-#skip-btn {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-
-#skip-btn.hidden { display: none; }
-
-#skip-game-btn {
-  font-size: 2rem;
-  background: rgba(10, 25, 16, 0.92);
-  border: 1px solid var(--gold-dim);
-  border-radius: 10px;
-  padding: 0.7rem 0.9rem;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  line-height: 1;
-}
-
-#skip-game-btn:hover {
-  background: rgba(201,168,76,0.15);
-  border-color: var(--gold);
-  transform: scale(1.08);
-}
-
-/* ── Skupina karet na bodovacím balíčku ── */
-.score-group {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--card-w);
-  height: var(--card-h);
-  transform-origin: center center;
-  transition: transform 0.3s ease;
-}
-
-.score-group.commitment {
-  filter: drop-shadow(0 0 8px rgba(201,168,76,0.6));
-}
-
-.score-group.has-joker .card:last-child {
-  position: relative;
-}
-
-.score-group.has-joker .card:last-child::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 8px;
-  padding: 2px;
-  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* ── Střední řada ── */
-#middle-row {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
-  padding: 0.4rem 0;
-  width: 100%;
-}
-
-.pile-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.pile-label {
-  font-family: 'Cinzel', serif;
-  font-size: 0.58rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.pile-count {
-  font-family: 'Cinzel', serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--gold-dim);
-  text-align: center;
-  min-width: 2ch;
-}
-
-/* ── Dobírací balíček ── */
 #draw-pile {
   width: var(--card-w);
   height: var(--card-h);
@@ -401,7 +225,6 @@ body {
     repeating-linear-gradient(135deg, #1e4030, #1e4030 4px, #172e23 4px, #172e23 8px);
 }
 
-/* ── Odhazovací balíček ── */
 #discard-pile {
   width: var(--card-w);
   height: var(--card-h);
@@ -436,20 +259,54 @@ body {
   box-shadow: 2px 3px 8px rgba(0,0,0,0.55);
 }
 
-/* ── Karta ── */
+/* ── Skip tlačítko ── */
+#skip-btn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+#skip-btn.hidden { display: none; }
+
+#skip-game-btn {
+  font-size: 1.8rem;
+  background: rgba(10, 25, 16, 0.92);
+  border: 1px solid var(--gold-dim);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  line-height: 1;
+}
+
+#skip-game-btn:hover {
+  background: rgba(201,168,76,0.15);
+  border-color: var(--gold);
+  transform: scale(1.08);
+}
+
+/* ════════════════════════════════════════
+   KARTA
+════════════════════════════════════════ */
+
 .card {
   width: var(--card-w);
   height: var(--card-h);
-  border-radius: 7px;
+  border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.12);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 6px;
+  padding: 4px;
   cursor: default;
   user-select: none;
   position: relative;
-  transition: box-shadow 0.15s;
+  /* Přidáme transition pro hover efekt */
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
   font-family: 'IM Fell English', serif;
   flex-shrink: 0;
 }
@@ -469,11 +326,11 @@ body {
 }
 
 .card.selected {
-  box-shadow: 0 0 0 2px var(--gold), 0 14px 28px rgba(201,168,76,0.35) !important;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(201,168,76,0.4) !important;
 }
 
 .card .corner {
-  font-size: 0.95rem;
+  font-size: 0.72rem;
   font-weight: bold;
   line-height: 1;
 }
@@ -488,8 +345,8 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 2rem;
-  opacity: 0.18;
+  font-size: 1.5rem;
+  opacity: 0.15;
   pointer-events: none;
   font-weight: bold;
 }
@@ -497,24 +354,174 @@ body {
 .card.red   { color: var(--red); }
 .card.joker { color: #6b3fa0; }
 
-/* ── Status bar ── */
+/* ════════════════════════════════════════
+   SCORE PILE — skupiny karet
+════════════════════════════════════════ */
+
+.score-group {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  transform-origin: center center;
+}
+
+.score-group.commitment {
+  filter: drop-shadow(0 0 8px rgba(201,168,76,0.6));
+}
+
+.score-group.has-joker .card:last-child::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  padding: 2px;
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════
+   POPUPY
+════════════════════════════════════════ */
+
+/* Score popup — nad vlastním score pile, absolutně v .score-pile-area */
+#action-popup {
+  position: absolute;
+  bottom: calc(var(--card-h) + 2rem);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(10, 25, 16, 0.97);
+  border: 1px solid var(--gold-dim);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  z-index: 200;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  animation: popup-in 0.15s ease;
+  white-space: nowrap;
+}
+
+#action-popup.hidden { display: none; }
+
+/* Discard popup — absolutně v #table, pozice nastavena JS */
+#discard-popup {
+  position: absolute;
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(10, 25, 16, 0.97);
+  border: 1px solid var(--gold-dim);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  z-index: 200;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  animation: popup-in 0.15s ease;
+  white-space: nowrap;
+}
+
+#discard-popup.hidden { display: none; }
+
+@keyframes popup-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+#action-popup::after,
+#discard-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid var(--gold-dim);
+}
+
+.action-btn {
+  background: rgba(201,168,76,0.06);
+  border: 1px solid var(--gold-dim);
+  border-radius: 7px;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 52px;
+}
+
+.action-btn:hover {
+  background: rgba(201,168,76,0.18);
+  border-color: var(--gold);
+}
+
+/* Miniatury karet v popupech */
+.mini-cards {
+  position: relative;
+  width: 36px;
+  height: 44px;
+}
+
+.mini-card {
+  position: absolute;
+  width: 26px;
+  height: 36px;
+  border-radius: 3px;
+  background: var(--cream);
+  border: 1px solid rgba(120,90,40,0.6);
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+}
+
+#action-add .mini-card:nth-child(1) { top: 8px; left: 8px; background: #ddd0b0; }
+#action-add .mini-card:nth-child(2) { top: 4px; left: 4px; background: #e8dcc0; }
+#action-add .mini-card:nth-child(3) { top: 0px; left: 0px; }
+
+#action-new .mini-cards.solo { width: 26px; height: 36px; }
+#action-new .mini-card { top: 0; left: 0; }
+
+#discard-action-take .mini-card:nth-child(1) { top: 4px; left: 6px; background: #e8dcc0; }
+#discard-action-take .mini-card:nth-child(2) { top: 0px; left: 0px; }
+
+.mini-cross {
+  font-size: 1.3rem;
+  color: var(--red);
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+
+/* ════════════════════════════════════════
+   STATUS BAR
+════════════════════════════════════════ */
+
 #status-bar {
   flex-shrink: 0;
   position: relative;
   width: 100%;
+  height: var(--status-h);
   border-top: 2px solid var(--gold-dim);
+  z-index: 20;
 }
 
 #status-log {
   background: var(--felt);
-  padding: 0.45rem 1rem;
-  font-size: 0.82rem;
+  height: 100%;
+  padding: 0 1rem;
+  font-size: 0.8rem;
   color: var(--muted);
   font-style: italic;
   transition: color 0.3s;
   text-align: center;
   cursor: pointer;
   user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #status-log:hover { color: var(--text); }
@@ -527,7 +534,6 @@ body {
   right: 0;
   background: var(--felt);
   border-top: 1px solid var(--gold-dim);
-  border-bottom: 1px solid var(--felt-edge);
   max-height: calc(5 * 2.2rem);
   overflow-y: auto;
   z-index: 50;
@@ -541,11 +547,7 @@ body {
 
 #status-log-expanded.hidden { display: none; }
 
-#event-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
+#event-list { list-style: none; }
 
 #event-list li {
   padding: 0.38rem 1rem;
@@ -556,18 +558,20 @@ body {
   text-align: center;
 }
 
-/* Nejnovější = poslední v DOM = vizuálně dole */
-#event-list li:last-child       { color: var(--text); opacity: 1; }
+#event-list li:last-child        { color: var(--text); opacity: 1; }
 #event-list li:nth-last-child(2) { opacity: 0.75; }
 #event-list li:nth-last-child(3) { opacity: 0.55; }
 #event-list li:nth-last-child(4) { opacity: 0.38; }
 #event-list li:nth-last-child(5) { opacity: 0.25; }
 
-/* ── End game overlay ── */
+/* ════════════════════════════════════════
+   END OVERLAY
+════════════════════════════════════════ */
+
 #end-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0,0,0,0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -610,11 +614,8 @@ body {
   text-align: center;
 }
 
-#end-results {
-  width: 100%;
-}
+#end-results { width: 100%; }
 
-/* Řádek výsledku jednoho hráče */
 .result-row {
   display: flex;
   justify-content: space-between;
@@ -640,11 +641,8 @@ body {
   font-weight: 700;
 }
 
-.result-winner .result-name::after {
-  content: ' 👑';
-}
+.result-winner .result-name::after { content: ' 👑'; }
 
-/* Oddělovač mezi hrami v sérii */
 .result-divider {
   text-align: center;
   font-size: 0.65rem;
@@ -655,7 +653,6 @@ body {
   font-family: 'Cinzel', serif;
 }
 
-/* Celkový součet */
 .result-total {
   border-top: 1px solid var(--gold-dim) !important;
   margin-top: 0.3rem;
@@ -663,9 +660,7 @@ body {
 }
 
 .result-total .result-name,
-.result-total .result-pts {
-  color: var(--gold);
-}
+.result-total .result-pts { color: var(--gold); }
 
 #end-btn {
   font-family: 'Cinzel', serif;
@@ -682,8 +677,6 @@ body {
   margin-top: 0.3rem;
 }
 
-#end-btn:hover {
-  background: #e0bc5a;
-}
+#end-btn:hover { background: #e0bc5a; }
 
 #debug-panel { display: none; }
