@@ -128,7 +128,6 @@ body {
   align-items: center;
   gap: 0.2rem;
   position: relative;
-  /* Padding shora/zdola aby se popup vešel */
   padding-top: 0.3rem;
   padding-bottom: 0.3rem;
 }
@@ -179,7 +178,6 @@ body {
   text-align: center;
 }
 
-/* Ruka — relativní kontejner, karty absolutně uvnitř */
 .hand {
   position: relative;
   overflow: visible;
@@ -305,7 +303,6 @@ body {
   cursor: default;
   user-select: none;
   position: relative;
-  /* Přidáme transition pro hover efekt */
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   font-family: 'IM Fell English', serif;
   flex-shrink: 0;
@@ -408,9 +405,9 @@ body {
 
 #action-popup.hidden { display: none; }
 
-/* Discard popup — absolutně v #table, pozice nastavena JS */
+/* Discard popup — fixed v body, pozice nastavena JS přes getBoundingClientRect() */
 #discard-popup {
-  position: absolute;
+  position: fixed;
   display: flex;
   gap: 0.5rem;
   background: rgba(10, 25, 16, 0.97);
@@ -426,12 +423,11 @@ body {
 #discard-popup.hidden { display: none; }
 
 @keyframes popup-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { opacity: 0; transform: translate(-50%, -50%) translateY(6px); }
+  to   { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
 }
 
-#action-popup::after,
-#discard-popup::after {
+#action-popup::after {
   content: '';
   position: absolute;
   bottom: -7px;

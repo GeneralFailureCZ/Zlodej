@@ -49,11 +49,13 @@
       </div>
     </div>
 
-    <div id="discard-popup" class="hidden">
-      <button id="discard-action-take" class="action-btn"><div class="mini-cards"><div class="mini-card"></div><div class="mini-card"></div></div></button>
-      <button id="discard-action-discard" class="action-btn"><div class="mini-cross">✕</div></button>
-    </div>
+  </div>
 
+  <!-- discard-popup je přímo v body s position:fixed -->
+  <!-- díky tomu positionDiscardPopup() může použít getBoundingClientRect() přímo -->
+  <div id="discard-popup" class="hidden">
+    <button id="discard-action-take" class="action-btn"><div class="mini-cards"><div class="mini-card"></div><div class="mini-card"></div></div></button>
+    <button id="discard-action-discard" class="action-btn"><div class="mini-cross">✕</div></button>
   </div>
 
   <div id="status-bar">

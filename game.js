@@ -837,26 +837,12 @@ function positionDiscardPopup() {
   const pile  = document.getElementById("discard-pile");
   if (!popup || !pile) return;
 
-  /*
-   * Popup má position:fixed — souřadnice jsou přímo relativní k viewportu,
-   * stejně jako getBoundingClientRect(). Žádný přepočet není potřeba.
-   */
-  const pileRect = pile.getBoundingClientRect();
+  const r = pile.getBoundingClientRect();
 
-  // Dočasně zobrazíme pro změření skutečné výšky a šířky
-  popup.style.visibility = "hidden";
-  popup.style.display    = "flex";
-  const popupH = popup.offsetHeight;
-  const popupW = popup.offsetWidth;
-  popup.style.visibility = "";
-  popup.style.display    = "";
-
-  // Vycentrujeme horizontálně nad balíčkem, 8px mezera
-  const left = pileRect.left + pileRect.width  / 2 - popupW / 2;
-  const top  = pileRect.top  - popupH - 8;
-
-  popup.style.left = left + "px";
-  popup.style.top  = top  + "px";
+  // Vycentrujeme popup přesně na střed odhazovacího balíčku
+  popup.style.left      = (r.left + r.width  / 2) + "px";
+  popup.style.top       = (r.top  + r.height / 2) + "px";
+  popup.style.transform = "translate(-50%, -50%)";
 }
 
 
@@ -1615,17 +1601,4 @@ initListeners();
 initPopupButtons();
 initDiscardPopupButtons();
 initStatusLogToggle();
-
-// Přesuneme discard-popup z #table do body a nastavíme position:fixed.
-// Důvod: popup je pozicován pomocí getBoundingClientRect() (viewport souřadnice),
-// ale position:absolute je relativní k nejbližšímu positioned předkovi (#table).
-// S position:fixed souřadnice sedí přímo bez jakéhokoli přepočtu.
-(function moveDiscardPopup() {
-  const popup = document.getElementById("discard-popup");
-  if (popup) {
-    popup.style.position = "fixed";
-    document.body.appendChild(popup);
-  }
-})();
-
 initGame(2);
