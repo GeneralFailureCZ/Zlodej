@@ -746,16 +746,27 @@ function initPopupButtons() {
     e.stopPropagation();
     if (!pendingPopupAction) return;
     const { playerIndex, cardId } = pendingPopupAction;
+    const cardEl         = getCardElement(cardId);
+    const toEl           = document.getElementById("score-pile-player");
+    const targetRotation = calcScorePileRotation(playerIndex, cardId);
     hideActionPopup();
-    if (playToScorePile(playerIndex, cardId, false)) advanceTurn();
+    if (playToScorePile(playerIndex, cardId, false)) {
+      animateCard(cardEl, toEl, false, () => advanceTurn(), targetRotation);
+    }
   });
 
   document.getElementById("action-new").addEventListener("click", (e) => {
     e.stopPropagation();
     if (!pendingPopupAction) return;
     const { playerIndex, cardId } = pendingPopupAction;
+    const cardEl         = getCardElement(cardId);
+    const toEl           = document.getElementById("score-pile-player");
+    // forceNew=true znamená vždy nový závazek → vždy 45°
+    const targetRotation = 45;
     hideActionPopup();
-    if (playToScorePile(playerIndex, cardId, true)) advanceTurn();
+    if (playToScorePile(playerIndex, cardId, true)) {
+      animateCard(cardEl, toEl, false, () => advanceTurn(), targetRotation);
+    }
   });
 }
 
@@ -796,35 +807,56 @@ function initDiscardPopupButtons() {
     e.stopPropagation();
     if (!pendingDiscardPopup) return;
     const { playerIndex, cardId } = pendingDiscardPopup;
+    const cardEl         = getCardElement(cardId);
+    const toEl           = document.getElementById("score-pile-player");
+    // takeFromDiscard vždy vytvoří novou skupinu → index = scorePile.length → sudý/lichý
+    const player         = gameState.players[playerIndex];
+    const targetRotation = player.scorePile.length % 2 === 0 ? 0 : 90;
     hideDiscardPopup();
-    if (takeFromDiscard(playerIndex, cardId)) advanceTurn();
+    if (takeFromDiscard(playerIndex, cardId)) {
+      animateCard(cardEl, toEl, false, () => advanceTurn(), targetRotation);
+    }
   });
 
   document.getElementById("discard-action-discard").addEventListener("click", (e) => {
     e.stopPropagation();
     if (!pendingDiscardPopup) return;
     const { playerIndex, cardId } = pendingDiscardPopup;
+    const cardEl        = getCardElement(cardId);
+    const toEl          = document.getElementById("discard-pile");
+    const targetRotation = ((cardId * 37 + 13) % 41) - 20;
     hideDiscardPopup();
-    if (discardCard(playerIndex, cardId)) advanceTurn();
+    if (discardCard(playerIndex, cardId)) {
+      animateCard(cardEl, toEl, false, () => advanceTurn(), targetRotation);
+    }
   });
 }
 
 function positionDiscardPopup() {
-  const popup   = document.getElementById("discard-popup");
-  const pile    = document.getElementById("discard-pile");
-  const table   = document.getElementById("table");
-  if (!popup || !pile || !table) return;
+  const popup = document.getElementById("discard-popup");
+  const pile  = document.getElementById("discard-pile");
+  if (!popup || !pile) return;
 
-  const pileRect  = pile.getBoundingClientRect();
-  const tableRect = table.getBoundingClientRect();
+  /*
+   * Popup má position:fixed — souřadnice jsou přímo relativní k viewportu,
+   * stejně jako getBoundingClientRect(). Žádný přepočet není potřeba.
+   */
+  const pileRect = pile.getBoundingClientRect();
 
-  const popupW = 140;
-  const left   = pileRect.left - tableRect.left + pileRect.width / 2 - popupW / 2;
-  const top    = pileRect.top  - tableRect.top  - 80;
+  // Dočasně zobrazíme pro změření skutečné výšky a šířky
+  popup.style.visibility = "hidden";
+  popup.style.display    = "flex";
+  const popupH = popup.offsetHeight;
+  const popupW = popup.offsetWidth;
+  popup.style.visibility = "";
+  popup.style.display    = "";
+
+  // Vycentrujeme horizontálně nad balíčkem, 8px mezera
+  const left = pileRect.left + pileRect.width  / 2 - popupW / 2;
+  const top  = pileRect.top  - popupH - 8;
 
   popup.style.left = left + "px";
   popup.style.top  = top  + "px";
-  popup.style.transform = "none";
 }
 
 
@@ -1043,12 +1075,43 @@ function onScorePileClick(playerIndex) {
 function resolveAction(targetType, targetPlayerIndex) {
   if (!selectedCard) return;
 
+  // ── Změna: místo přímého volání advanceTurn() předáme callback s animací ──
+
   if (targetType === "discard") {
-    if (discardCard(selectedCard.playerIndex, selectedCard.cardId)) advanceTurn();
+    const cardEl = getCardElement(selectedCard.cardId);
+    const toEl   = document.getElementById("discard-pile");
+
+    // Spočítáme cílovou rotaci předem — stejný vzorec jako v renderDiscardPile()
+    // Díky tomu karta přistane přesně ve své finální poloze, bez skoku.
+    const cardId        = selectedCard.cardId;
+    const targetRotation = ((cardId * 37 + 13) % 41) - 20;
+
+    if (discardCard(selectedCard.playerIndex, selectedCard.cardId)) {
+      animateCard(cardEl, toEl, false, () => advanceTurn(), targetRotation);
+    }
     return;
   }
+
   if (targetType === "score-self") {
-    if (playToScorePile(selectedCard.playerIndex, selectedCard.cardId, false)) advanceTurn();
+    const cardEl        = getCardElement(selectedCard.cardId);
+    const toEl          = document.getElementById("score-pile-player");
+    const wasCommitment = gameState.players[selectedCard.playerIndex].inCommitment;
+
+    /*
+     * Při dokončení závazku karta vždy letí na 45° — to je rotace závazku.
+     * Po přistání se skupina plynule přetočí na 0° nebo 90°.
+     * Při ostatních akcích (přiložení, nový závazek) počítáme rotaci normálně.
+     */
+    const flyRotation    = wasCommitment ? 45 : calcScorePileRotation(selectedCard.playerIndex, selectedCard.cardId);
+    const targetRotation = wasCommitment ? calcScorePileRotation(selectedCard.playerIndex, selectedCard.cardId) : flyRotation;
+
+    if (playToScorePile(selectedCard.playerIndex, selectedCard.cardId, false)) {
+      animateCard(cardEl, toEl, false, () => {
+        if (wasCommitment) gameState.animateLastGroupRotation = true;
+        advanceTurn();
+        gameState.animateLastGroupRotation = false;
+      }, flyRotation);
+    }
     return;
   }
   if (targetType === "score-steal") {
@@ -1058,7 +1121,220 @@ function resolveAction(targetType, targetPlayerIndex) {
 }
 
 
-// ── 23. Renderování ────────────────────────────────────────────────────────
+// ── 23. Animace ────────────────────────────────────────────────────────────
+
+/*
+ * ANIMAČNÍ DÉLKY podle CONFIG.ANIMATION_SPEED
+ * Vrátí počet milisekund pro jednu animaci.
+ */
+function animDuration() {
+  switch (CONFIG.ANIMATION_SPEED) {
+    case "fast":  return 180;
+    case "slow":  return 500;
+    case "off":   return 0;
+    default:      return 300; // "normal"
+  }
+}
+
+/*
+ * getCardElement(cardId)
+ * Najde DOM element karty v ruce hráče podle cardId.
+ * Karty mají data-card-id atribut nastavený při renderování.
+ * Vrátí element nebo null.
+ */
+function getCardElement(cardId) {
+  return document.querySelector(`[data-card-id="${cardId}"]`);
+}
+
+/*
+ * calcScorePileRotation(playerIndex, cardId)
+ *
+ * Spočítá cílovou rotaci karty na score pile — musíme volat PŘED herní logikou,
+ * protože logika změní scorePile a už bychom nevěděli jaký index skupina dostane.
+ *
+ * Kopíruje stejnou logiku jako renderScorePile():
+ *   - závazek (karta nemá pár v pile) → 45°
+ *   - sudý index skupiny → 0°
+ *   - lichý index skupiny → 90°
+ *
+ * "Jaký index dostane nová/upravená skupina?" závisí na akci:
+ *   - nová skupina (závazek nebo přiložení na novou) → scorePile.length (bude přidána na konec)
+ *   - přiložení na existující vrchní skupinu → scorePile.length - 1 (existující index)
+ *   - dokončení závazku → scorePile.length - 1 (dokončuje se poslední skupina)
+ */
+function calcScorePileRotation(playerIndex, cardId) {
+  const player = gameState.players[playerIndex];
+  const found  = findCardInHand(playerIndex, cardId);
+  if (!found) return 0;
+
+  const { card, index } = found;
+
+  // Dokončení závazku — poslední skupina přestane být závazek → dostane normální rotaci
+  if (player.inCommitment) {
+    const groupIndex = player.scorePile.length - 1;
+    return groupIndex % 2 === 0 ? 0 : 90;
+  }
+
+  // Přiložení na existující skupinu stejného ranku
+  if (card.rank !== "Joker" && player.scorePile.length > 0) {
+    const topGroupRank = player.scorePile[player.scorePile.length - 1].find(c => c.rank !== "Joker")?.rank;
+    if (topGroupRank === card.rank) {
+      const groupIndex = player.scorePile.length - 1;
+      return groupIndex % 2 === 0 ? 0 : 90;
+    }
+  }
+
+  // Nový závazek — skupina s 1 kartou → vždy 45°
+  return 45;
+}
+
+/*
+ * animateCard(fromEl, toEl, flip, callback, targetRotation)
+ *
+ * fromEl         — zdrojový DOM element (karta v ruce) nebo null
+ * toEl           — cílový DOM element (discard pile, score pile...)
+ * flip           — true = otočit z rubu na líc během letu
+ * callback       — zavolá se po skončení animace
+ * targetRotation — volitelné: cílová rotace karty ve stupních (např. pro odhaz)
+ *                  Karta se během letu plynule natočí do této pozice.
+ *                  Bez tohoto parametru přistane rovně (0°).
+ */
+function animateCard(fromEl, toEl, flip, callback, targetRotation = 0) {
+  const duration = animDuration();
+
+  // Pokud jsou animace vypnuté nebo nemáme zdrojový element, rovnou callback
+  if (duration === 0 || !fromEl || !toEl) {
+    renderAll();
+    callback();
+    return;
+  }
+
+  const fromRect = fromEl.getBoundingClientRect();
+  const toRect   = toEl.getBoundingClientRect();
+
+  // Cílová pozice = střed cílového elementu, vycentrovaný na kartu
+  const targetLeft = toRect.left + (toRect.width  - 138) / 2;
+  const targetTop  = toRect.top  + (toRect.height - 198) / 2;
+
+  // ── Vytvoříme klon ────────────────────────────────────────────────────────
+  //
+  // Klon zkopíruje HTML obsah zdrojové karty (má správné rank/suit/barvu).
+  // Zabalíme ho do .flying-card kontejneru s position:fixed.
+  //
+  const clone = document.createElement("div");
+  clone.style.cssText = `
+    position: fixed;
+    left: ${fromRect.left}px;
+    top:  ${fromRect.top}px;
+    width: 138px;
+    height: 198px;
+    perspective: 600px;
+    pointer-events: none;
+    z-index: 9999;
+    will-change: transform;
+  `;
+
+  // Vnitřní wrapper — na něm poběží transition
+  const inner = document.createElement("div");
+  inner.style.cssText = `
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform ${duration}ms ease;
+  `;
+
+  if (flip) {
+    // Flip: potřebujeme dvě strany (rub + líc)
+    // Rub — viditelný na začátku
+    const back = document.createElement("div");
+    back.style.cssText = `
+      position: absolute; inset: 0;
+      border-radius: 7px;
+      background: repeating-linear-gradient(135deg, #1e4030, #1e4030 4px, #172e23 4px, #172e23 8px);
+      border: 1px solid #7a6030;
+      box-shadow: -2px 2px 8px rgba(0,0,0,0.5);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    `;
+
+    // Líc — zkopírujeme obsah zdrojové karty, otočíme o 180° (na začátku skrytý)
+    const front = document.createElement("div");
+    front.style.cssText = `
+      position: absolute; inset: 0;
+      border-radius: 7px;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      transform: rotateY(180deg);
+    `;
+    // Zkopírujeme vizuál z originálu
+    front.innerHTML = fromEl.innerHTML;
+    // Zkopírujeme třídy pro správnou barvu (red, joker...)
+    front.className = fromEl.className;
+    front.style.cssText += `
+      position: absolute; inset: 0;
+      border-radius: 7px;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      transform: rotateY(180deg);
+    `;
+
+    inner.appendChild(back);
+    inner.appendChild(front);
+  } else {
+    // Bez flipu — jen zkopírujeme vizuál karty
+    const face = document.createElement("div");
+    face.innerHTML  = fromEl.innerHTML;
+    face.className  = fromEl.className;
+    face.style.cssText = `
+      position: absolute; inset: 0;
+      border-radius: 7px;
+    `;
+    inner.appendChild(face);
+  }
+
+  clone.appendChild(inner);
+  document.body.appendChild(clone);
+
+  // Schováme originál aby nebyly vidět dva exempláře
+  fromEl.style.opacity = "0";
+
+  // ── Spustíme animaci ──────────────────────────────────────────────────────
+
+  const dx = targetLeft - fromRect.left;
+  const dy = targetTop  - fromRect.top;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      /*
+       * Finální transform kombinuje tři věci zároveň:
+       * 1. translate  — pohyb z A do B
+       * 2. rotate     — natočení do cílové pozice (pro odhaz = náhodný náklon)
+       * 3. rotateY    — flip z rubu na líc (pouze pokud flip=true)
+       *
+       * Pořadí: translate první — karta se posune v původním souřadném systému,
+       * ne ve svém vlastním natočeném.
+       */
+      if (flip) {
+        inner.style.transform = `translate(${dx}px, ${dy}px) rotate(${targetRotation}deg) rotateY(180deg)`;
+      } else {
+        inner.style.transform = `translate(${dx}px, ${dy}px) rotate(${targetRotation}deg)`;
+      }
+    });
+  });
+
+  // ── Po skončení animace ───────────────────────────────────────────────────
+
+  inner.addEventListener("transitionend", () => {
+    clone.remove();
+    // Originál necháme schovaný — renderAll() ho stejně přepíše celý innerHTML
+    renderAll();
+    callback();
+  }, { once: true });
+}
+
+
+// ── 24. Renderování ────────────────────────────────────────────────────────
 
 function createCardElement(card, faceUp, isSelected = false) {
   const el = document.createElement("div");
@@ -1077,20 +1353,14 @@ function createCardElement(card, faceUp, isSelected = false) {
     <span class="center-rank">${card.rank === "Joker" ? "🃏" : card.rank}</span>
     <span class="corner bottom">${label}</span>
   `;
+
+  // ── Klíčová změna: data-card-id atribut ──────────────────────────────────
+  // Díky tomu getCardElement(cardId) najde správný DOM element.
+  el.dataset.cardId = card.id;
+
   return el;
 }
 
-/**
- * renderHand — karty se vykreslují přímo jako absolutní pozice v #table
- *
- * Hráč:   střed kružnice = pravý dolní roh tabulky
- *         karty vycházejí nahoru a doleva
- *         face-up, klikatelné
- *
- * Soupeř: střed kružnice = levý horní roh tabulky
- *         karty vycházejí dolů a doprava, otočené 180°
- *         face-down, neklikatelné
- */
 function renderHand(player, containerId, clickable = false, fanDown = false) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -1116,9 +1386,6 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
   container.style.height = H + "px";
 
   if (fanDown) {
-    // ── SOUPEŘ ──
-    // Stejná logika jako hráč, ale celý kontejner otočen o 180° kolem svého středu
-    // a posunut nahoru aby byl z půlky skrytý
     const SPREAD_OPP = 3;
     const STEP_OPP   = 14;
     const RADIUS_OPP = 500;
@@ -1131,7 +1398,6 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
 
     container.style.width     = W2 + "px";
     container.style.height    = H2 + "px";
-    // Otočení celého kontejneru o 180° + posun nahoru o půl výšky karty
     container.style.transform = `rotate(180deg) translateY(${CARD_H + 100}px)`;
     container.style.transformOrigin = "50% 100%";
 
@@ -1158,10 +1424,7 @@ function renderHand(player, containerId, clickable = false, fanDown = false) {
     });
 
   } else {
-    // ── HRÁČ ──
-    // Střed kružnice POD kontejnerem
     const cy = H + RADIUS;
-    // Kotví vpravo: pravá karta (i=n-1) na pravém okraji
     const endAngleRad = ((startAngle + (n-1) * SPREAD) * Math.PI) / 180;
     const cx = W - CARD_W / 2 - RADIUS * Math.sin(endAngleRad);
 
@@ -1237,18 +1500,38 @@ function renderScorePile(player, slotId, countId, scoreId) {
   if (player.scorePile.length === 0) {
     slot.innerHTML = `<span class="empty-label">empty</span>`;
   } else {
+    const isPlayerSlot = slotId === "score-pile-player";
+    const animateLast  = isPlayerSlot && gameState.animateLastGroupRotation;
+
     player.scorePile.forEach((group, idx) => {
       const isCommitment = group.length === 1;
       const isTopTwo     = idx >= player.scorePile.length - 2;
       const hasJoker     = isTopTwo && group.some(c => c.rank === "Joker");
       const rotation     = isCommitment ? 45 : (idx % 2 === 0 ? 0 : 90);
+      const isLast       = idx === player.scorePile.length - 1;
 
       const wrapper = document.createElement("div");
       wrapper.classList.add("score-group");
       if (isCommitment) wrapper.classList.add("commitment");
       if (hasJoker)     wrapper.classList.add("has-joker");
-      wrapper.style.transform = `rotate(${rotation}deg)`;
-      wrapper.style.zIndex    = String(idx + 1);
+      wrapper.style.zIndex = String(idx + 1);
+
+      if (animateLast && isLast) {
+        /*
+         * Tato skupina právě přešla ze závazku (45°) na normální rotaci.
+         * Vykreslíme ji na 45° a pak pomocí rAF spustíme CSS transition na cílovou rotaci.
+         * Tím hráč vidí plynulé překlopení místo okamžitého skoku.
+         */
+        wrapper.style.transform  = `rotate(45deg)`;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            wrapper.style.transition = `transform ${animDuration()}ms ease`;
+            wrapper.style.transform  = `rotate(${rotation}deg)`;
+          });
+        });
+      } else {
+        wrapper.style.transform = `rotate(${rotation}deg)`;
+      }
 
       group.forEach((card, ci) => {
         const el = createCardElement(card, true);
@@ -1277,7 +1560,6 @@ function renderAll() {
   renderDiscardPile();
   renderDrawPile();
 
-  // Zvýraznění cílů při výběru karty
   document.getElementById("discard-pile")
     .classList.toggle("target-highlight", selectedCard !== null);
   document.getElementById("score-pile-player")
@@ -1308,7 +1590,6 @@ function initListeners() {
       if (gameState.phase === "playing") endGame("stalemate");
     });
 
-  // Klik mimo popup ho sbalí
   document.addEventListener("click", () => {
     if (pendingPopupAction) {
       hideActionPopup();
@@ -1334,4 +1615,17 @@ initListeners();
 initPopupButtons();
 initDiscardPopupButtons();
 initStatusLogToggle();
+
+// Přesuneme discard-popup z #table do body a nastavíme position:fixed.
+// Důvod: popup je pozicován pomocí getBoundingClientRect() (viewport souřadnice),
+// ale position:absolute je relativní k nejbližšímu positioned předkovi (#table).
+// S position:fixed souřadnice sedí přímo bez jakéhokoli přepočtu.
+(function moveDiscardPopup() {
+  const popup = document.getElementById("discard-popup");
+  if (popup) {
+    popup.style.position = "fixed";
+    document.body.appendChild(popup);
+  }
+})();
+
 initGame(2);
